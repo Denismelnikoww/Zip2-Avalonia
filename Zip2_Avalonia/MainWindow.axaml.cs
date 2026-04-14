@@ -214,12 +214,23 @@ public partial class MainWindow : Window
         {
             if (Directory.Exists(folderPath))
             {
-                Process.Start("explorer.exe", folderPath);
+                if (OperatingSystem.IsWindows())
+                {
+                    Process.Start("explorer.exe", folderPath);
+                }
+                else if (OperatingSystem.IsLinux())
+                {
+                    Process.Start("xdg-open", folderPath);
+                }
+                else if (OperatingSystem.IsMacOS())
+                {
+                    Process.Start("open", folderPath);
+                }
             }
         }
         catch (Exception ex)
         {
-            txtStatus.Text = $"Результаты сохранены, но не удалось открыть папку: {ex.Message}";
+            txtStatus.Text = $"Не удалось открыть папку: {ex.Message}";
         }
     }
 }

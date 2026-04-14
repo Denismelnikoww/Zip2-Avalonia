@@ -5,188 +5,207 @@
     Title="BMP Lab Work 2"
     Width="1200"
     Height="700"
-    Background="{DynamicResource ThemeBackgroundBrush}"
+    Background="#1E1E1E"
     WindowStartupLocation="CenterScreen">
 
-    <Design.PreviewWith>
-        <Border Padding="20">
-            <ContentPresenter />
-        </Border>
-    </Design.PreviewWith>
-
     <Grid Margin="20" RowDefinitions="Auto, *, Auto">
-        <!--  Header Panel  -->
+
+        <!-- HEADER -->
         <Border
             Grid.Row="0"
             Margin="0,0,0,20"
             Padding="16"
-            Background="{DynamicResource ThemeAccentBrush4}"
-            BorderBrush="{DynamicResource ThemeBorderMidBrush}"
+            Background="#2A2A2A"
+            BorderBrush="#444"
             BorderThickness="1"
-            CornerRadius="8">
-            <StackPanel Spacing="12">
-                <TextBlock
-                    FontSize="20"
-                    FontWeight="Medium"
-                    Text="Лабораторная работа №2: Анализ BMP файлов"
-                    TextWrapping="Wrap" />
+            CornerRadius="10">
 
-                <StackPanel
-                    VerticalAlignment="Center"
-                    Orientation="Horizontal"
-                    Spacing="12">
+            <StackPanel Spacing="12">
+
+                <TextBlock
+                    FontSize="22"
+                    FontWeight="Bold"
+                    Foreground="White"
+                    Text="Анализ BMP файлов" />
+
+                <Separator/>
+
+                <StackPanel Orientation="Horizontal" Spacing="12">
+
                     <Button
                         Name="btnSelectImage"
+                        Click="BtnSelectImage_Click"
                         Height="40"
-                        MinWidth="160"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Center"
-                        Classes="PrimaryButton"
-                        Content="Выбрать BMP файл" />
+                        MinWidth="180"
+                        Background="#3A3A3A"
+                        Foreground="White"
+                        CornerRadius="6"
+                        Content="Выбрать BMP файл"/>
 
                     <Border
                         Padding="8,4"
-                        Background="{DynamicResource ThemeControlHighBrush}"
-                        CornerRadius="4">
+                        Background="#333"
+                        CornerRadius="6">
+
                         <TextBlock
                             Name="txtStatus"
-                            VerticalAlignment="Center"
+                            Foreground="#A8E6CF"
                             FontSize="12"
-                            Opacity="0.8"
-                            Text="Готов к работе" />
+                            Text="Готов к работе"/>
                     </Border>
+
                 </StackPanel>
+
             </StackPanel>
         </Border>
 
-        <!--  Main Content Area  -->
+        <!-- MAIN -->
         <Grid
             Grid.Row="1"
-            ColumnDefinitions="*, 350"
-            ColumnSpacing="20"
-            RowSpacing="0">
+            ColumnDefinitions="2*, 3*"
+            ColumnSpacing="20">
 
-            <!--  Left Panel: Image Preview  -->
+            <!-- IMAGE -->
             <Border
                 Grid.Column="0"
                 Padding="16"
-                Background="{DynamicResource ThemeBackgroundBrush}"
-                BorderBrush="{DynamicResource ThemeBorderLowBrush}"
+                Background="#2A2A2A"
+                BorderBrush="#444"
                 BorderThickness="1"
-                CornerRadius="8">
-                <DockPanel>
-                    <TextBlock
-                        Margin="0,0,0,12"
-                        DockPanel.Dock="Top"
-                        FontSize="16"
-                        FontWeight="Medium"
-                        Text="Предварительный просмотр" />
+                CornerRadius="10">
 
-                    <Grid Margin="0,8,0,0" RowDefinitions="*, Auto">
+                <DockPanel>
+
+                    <TextBlock
+                        DockPanel.Dock="Top"
+                        FontSize="18"
+                        FontWeight="Bold"
+                        Foreground="White"
+                        Text="Предпросмотр"/>
+
+                    <Separator Margin="0,10"/>
+
+                    <Grid RowDefinitions="*, Auto">
+
                         <Border
-                            Grid.Row="0"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Background="{DynamicResource ThemeControlLowBrush}"
-                            BorderBrush="{DynamicResource ThemeBorderLowBrush}"
+                            Background="#1A1A1A"
+                            BorderBrush="#444"
                             BorderThickness="1"
                             CornerRadius="6">
+
                             <Image
                                 Name="imgPreview"
                                 MaxWidth="800"
                                 MaxHeight="400"
                                 Margin="16"
-                                Stretch="Uniform" />
+                                Stretch="Uniform"/>
                         </Border>
 
                         <TextBlock
                             Name="txtImageInfo"
                             Grid.Row="1"
                             Margin="0,12,0,0"
+                            Foreground="#CCC"
                             FontSize="12"
-                            Opacity="0.7"
-                            TextAlignment="Center" />
+                            TextAlignment="Center"/>
                     </Grid>
+
                 </DockPanel>
             </Border>
 
-            <!--  Right Panel: BMP Header Info  -->
+            <!-- INFO -->
             <Border
                 Grid.Column="1"
                 Padding="16"
-                Background="{DynamicResource ThemeBackgroundBrush}"
-                BorderBrush="{DynamicResource ThemeBorderLowBrush}"
+                Background="#2A2A2A"
+                BorderBrush="#444"
                 BorderThickness="1"
-                CornerRadius="8">
-                <DockPanel>
-                    <TextBlock
-                        Margin="0,0,0,12"
-                        DockPanel.Dock="Top"
-                        FontSize="16"
-                        FontWeight="Medium"
-                        Text="Информация о файле" />
+                CornerRadius="10">
 
-                    <ScrollViewer
-                        Padding="4"
-                        DockPanel.Dock="Bottom"
-                        VerticalScrollBarVisibility="Auto">
+                <DockPanel>
+
+                    <TextBlock
+                        DockPanel.Dock="Top"
+                        FontSize="18"
+                        FontWeight="Bold"
+                        Foreground="White"
+                        Text="Информация"/>
+
+                    <Separator Margin="0,10"/>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+
                         <TextBlock
                             Name="txtHeaderInfo"
-                            FontFamily="Cascadia Code, Consolas, monospace"
-                            FontSize="11"
-                            LineHeight="16"
-                            Opacity="0.9"
-                            TextWrapping="Wrap" />
+                            FontFamily="Cascadia Code, Consolas"
+                            FontSize="20"
+                            Foreground="#DDD"
+                            TextWrapping="Wrap"/>
                     </ScrollViewer>
+
                 </DockPanel>
             </Border>
+
         </Grid>
 
-        <!--  Bottom Panel: Controls  -->
+        <!-- BOTTOM -->
         <Border
             Grid.Row="2"
             Margin="0,20,0,0"
             Padding="16"
-            Background="{DynamicResource ThemeAccentBrush4}"
-            BorderBrush="{DynamicResource ThemeBorderMidBrush}"
+            Background="#2A2A2A"
+            BorderBrush="#444"
             BorderThickness="1"
-            CornerRadius="8">
-            <StackPanel Spacing="16">
-                <TextBlock
-                    FontSize="14"
-                    FontWeight="Medium"
-                    Text="Режимы обработки" />
+            CornerRadius="10">
 
-                <StackPanel Orientation="Horizontal" Spacing="24">
+            <StackPanel Spacing="12">
+
+                <TextBlock
+                    FontSize="16"
+                    FontWeight="Bold"
+                    Foreground="White"
+                    Text="Режим обработки"/>
+
+                <Separator/>
+
+                <StackPanel Orientation="Horizontal" Spacing="20">
+
                     <ToggleButton
                         Name="rbGrayscale"
-                        Classes="RadioButtonStyle"
-                        Content="Чёрно-белый"
-                        IsChecked="True" />
+                        IsChecked="True"
+                        Background="#3A3A3A"
+                        Foreground="White"
+                        Content="Ч/Б"/>
 
                     <ToggleButton
                         Name="rbColored"
-                        Classes="RadioButtonStyle"
-                        Content="Цветной" />
+                        Background="#3A3A3A"
+                        Foreground="White"
+                        Content="Цветной"/>
 
                     <ToggleButton
                         Name="rbBoth"
-                        Classes="RadioButtonStyle"
-                        Content="Оба режима" />
+                        Background="#3A3A3A"
+                        Foreground="White"
+                        Content="Оба"/>
                 </StackPanel>
 
-                <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+
                     <Button
                         Name="btnProcess"
+                        Click="BtnProcess_Click"
                         Height="44"
-                        MinWidth="200"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        Classes="SuccessButton"
-                        Content="Выполнить анализ"
-                        IsEnabled="False" />
+                        MinWidth="220"
+                        Background="#4CAF50"
+                        Foreground="White"
+                        CornerRadius="6"
+                        Content="Запустить анализ"
+                        IsEnabled="False"/>
                 </StackPanel>
+
             </StackPanel>
         </Border>
+
     </Grid>
 </Window>
