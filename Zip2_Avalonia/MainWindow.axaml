@@ -28,7 +28,7 @@
                     Foreground="White"
                     Text="Анализ BMP файлов" />
 
-                <Separator/>
+                <Separator />
 
                 <StackPanel Orientation="Horizontal" Spacing="12">
 
@@ -40,18 +40,37 @@
                         Background="#3A3A3A"
                         Foreground="White"
                         CornerRadius="6"
-                        Content="Выбрать BMP файл"/>
+                        Content="Выбрать BMP файл" />
+                    
+                    <Button
+                        Name="btnSelectRle"
+                        Click="BtnSelectRle_Click"
+                        Height="40"
+                        MinWidth="180"
+                        Background="#555"
+                        Foreground="White"
+                        CornerRadius="6"
+                        Content="Выбрать RLE файл"/>
 
                     <Border
                         Padding="8,4"
                         Background="#333"
                         CornerRadius="6">
 
-                        <TextBlock
-                            Name="txtStatus"
-                            Foreground="#A8E6CF"
-                            FontSize="12"
-                            Text="Готов к работе"/>
+                        <StackPanel Orientation="Vertical">
+
+                            <TextBlock
+                                Name="txtStatus"
+                                Foreground="#A8E6CF"
+                                FontSize="12"
+                                Text="Готов к работе"/>
+
+                            <TextBlock
+                                Name="txtRleStatus"
+                                Foreground="#FFD580"
+                                FontSize="12"
+                                Text="RLE не выбран"/>
+                        </StackPanel>
                     </Border>
 
                 </StackPanel>
@@ -81,9 +100,9 @@
                         FontSize="18"
                         FontWeight="Bold"
                         Foreground="White"
-                        Text="Предпросмотр"/>
+                        Text="Предпросмотр" />
 
-                    <Separator Margin="0,10"/>
+                    <Separator Margin="0,10" />
 
                     <Grid RowDefinitions="*, Auto">
 
@@ -98,7 +117,7 @@
                                 MaxWidth="800"
                                 MaxHeight="400"
                                 Margin="16"
-                                Stretch="Uniform"/>
+                                Stretch="Uniform" />
                         </Border>
 
                         <TextBlock
@@ -107,7 +126,7 @@
                             Margin="0,12,0,0"
                             Foreground="#CCC"
                             FontSize="12"
-                            TextAlignment="Center"/>
+                            TextAlignment="Center" />
                     </Grid>
 
                 </DockPanel>
@@ -129,9 +148,9 @@
                         FontSize="18"
                         FontWeight="Bold"
                         Foreground="White"
-                        Text="Информация"/>
+                        Text="Информация" />
 
-                    <Separator Margin="0,10"/>
+                    <Separator Margin="0,10" />
 
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
 
@@ -140,7 +159,7 @@
                             FontFamily="Cascadia Code, Consolas"
                             FontSize="20"
                             Foreground="#DDD"
-                            TextWrapping="Wrap"/>
+                            TextWrapping="Wrap" />
                     </ScrollViewer>
 
                 </DockPanel>
@@ -164,33 +183,58 @@
                     FontSize="16"
                     FontWeight="Bold"
                     Foreground="White"
-                    Text="Режим обработки"/>
+                    Text="Режим обработки" />
 
-                <Separator/>
+                <Separator />
 
                 <StackPanel Orientation="Horizontal" Spacing="20">
 
-                    <ToggleButton
+                    <RadioButton
                         Name="rbGrayscale"
                         IsChecked="True"
+                        GroupName="Mode"
                         Background="#3A3A3A"
                         Foreground="White"
-                        Content="Ч/Б"/>
+                        Content="Ч/Б" />
 
-                    <ToggleButton
+                    <RadioButton
                         Name="rbColored"
+                        GroupName="Mode"
                         Background="#3A3A3A"
                         Foreground="White"
-                        Content="Цветной"/>
+                        Content="Цветной" />
 
-                    <ToggleButton
+                    <RadioButton
                         Name="rbBoth"
+                        GroupName="Mode"
                         Background="#3A3A3A"
                         Foreground="White"
-                        Content="Оба"/>
+                        Content="Оба" />
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+
+                    <Button
+                        Name="btnEncode"
+                        Click="BtnEncode_Click"
+                        Height="44"
+                        MinWidth="180"
+                        Background="#2196F3"
+                        Foreground="White"
+                        CornerRadius="6"
+                        Content="RLE Кодировать"
+                        IsEnabled="False" />
+
+                    <Button
+                        Name="btnDecode"
+                        Click="BtnDecode_Click"
+                        Height="44"
+                        MinWidth="180"
+                        Background="#FF9800"
+                        Foreground="White"
+                        CornerRadius="6"
+                        Content="RLE Декодировать"
+                        IsEnabled="False" />
 
                     <Button
                         Name="btnProcess"
@@ -201,7 +245,7 @@
                         Foreground="White"
                         CornerRadius="6"
                         Content="Запустить анализ"
-                        IsEnabled="False"/>
+                        IsEnabled="False" />
                 </StackPanel>
 
             </StackPanel>

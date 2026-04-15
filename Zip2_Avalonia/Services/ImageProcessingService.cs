@@ -26,7 +26,8 @@ public class ImageProcessingService
         return outputDir;
     }
 
-    public void SplitIntoColorChannels(byte[] rgbData, int width, int height, string outputDir, string fileName, ColorChannelMode mode)
+    public void SplitIntoColorChannels(byte[] rgbData, int width, int height, string outputDir, string fileName,
+        ColorChannelMode mode)
     {
         int totalPixels = width * height;
 
@@ -60,7 +61,6 @@ public class ImageProcessingService
             _bmpWriter.SaveGrayscaleBmp(blue, width, height, Path.Combine(subDir, $"{fileName}_BLUE_grayscale.bmp"));
         }
 
-        // Вариант 2: Цветные каналы
         if (mode == ColorChannelMode.Colored || mode == ColorChannelMode.Both)
         {
             if (mode == ColorChannelMode.Both)
@@ -73,7 +73,6 @@ public class ImageProcessingService
                 subDir = outputDir;
             }
 
-            // Создаём цветные каналы
             byte[] redChannelRGB = new byte[totalPixels * 3];
             byte[] greenChannelRGB = new byte[totalPixels * 3];
             byte[] blueChannelRGB = new byte[totalPixels * 3];
@@ -93,23 +92,25 @@ public class ImageProcessingService
                 blueChannelRGB[i * 3 + 0] = blue[i];
             }
 
-            _bmpWriter.SaveBmp24Color(Path.Combine(subDir, $"{fileName}_RED_colored.bmp"), redChannelRGB, width, height);
-            _bmpWriter.SaveBmp24Color(Path.Combine(subDir, $"{fileName}_GREEN_colored.bmp"), greenChannelRGB, width, height);
-            _bmpWriter.SaveBmp24Color(Path.Combine(subDir, $"{fileName}_BLUE_colored.bmp"), blueChannelRGB, width, height);
+            _bmpWriter.SaveBmp24Color(Path.Combine(subDir, $"{fileName}_RED_colored.bmp"), redChannelRGB, width,
+                height);
+            _bmpWriter.SaveBmp24Color(Path.Combine(subDir, $"{fileName}_GREEN_colored.bmp"), greenChannelRGB, width,
+                height);
+            _bmpWriter.SaveBmp24Color(Path.Combine(subDir, $"{fileName}_BLUE_colored.bmp"), blueChannelRGB, width,
+                height);
         }
     }
 
-    public void SplitIntoBitSlices(byte[] imageData, int width, int height, int bytesPerPixel, string outputDir, string fileName)
+    public void SplitIntoBitSlices(byte[] imageData, int width, int height, int bytesPerPixel, string outputDir,
+        string fileName)
     {
         int totalPixels = width * height;
 
-        // Создаём подпапку для битовых срезов
         string bitSlicesDir = Path.Combine(outputDir, "Bit_Slices");
         Directory.CreateDirectory(bitSlicesDir);
 
         if (bytesPerPixel == 3)
         {
-            // Извлекаем каждый цветовой канал
             byte[] red = new byte[totalPixels];
             byte[] green = new byte[totalPixels];
             byte[] blue = new byte[totalPixels];
@@ -121,6 +122,8 @@ public class ImageProcessingService
                 blue[i] = imageData[i * 3 + 0];
             }
 
+            byte[] grayData = ConvertToGrayscale(red, green, blue, totalPixels);
+            ProcessBitSlicesForChannel(grayData, width, height, "GRAY", bitSlicesDir, fileName);
             ProcessBitSlicesForChannel(red, width, height, "RED", bitSlicesDir, fileName);
             ProcessBitSlicesForChannel(green, width, height, "GREEN", bitSlicesDir, fileName);
             ProcessBitSlicesForChannel(blue, width, height, "BLUE", bitSlicesDir, fileName);
@@ -135,11 +138,22 @@ public class ImageProcessingService
         }
     }
 
-    private void ProcessBitSlicesForChannel(byte[] channelData, int width, int height, string channelName, string outputDir, string fileName)
+    private byte[] ConvertToGrayscale(byte[] red, byte[] green, byte[] blue, int totalPixels)
+    {
+        byte[] gray = new byte[totalPixels];
+        for (int i = 0; i < totalPixels; i++)
+        {
+            gray[i] = (byte)(0.299 * red[i] + 0.587 * green[i] + 0.114 * blue[i]);
+        }
+
+        return gray;
+    }
+
+    private void ProcessBitSlicesForChannel(byte[] channelData, int width, int height, string channelName,
+        string outputDir, string fileName)
     {
         int totalPixels = width * height;
 
-        // Создаём подпапку для канала
         string channelDir = Path.Combine(outputDir, channelName);
         Directory.CreateDirectory(channelDir);
 
@@ -148,7 +162,6 @@ public class ImageProcessingService
             byte[] bitSlice = new byte[totalPixels];
             for (int i = 0; i < totalPixels; i++)
             {
-                // Извлекаем значение бита (255 если бит установлен, иначе 0)
                 bitSlice[i] = (byte)(((channelData[i] >> bit) & 1) * 255);
             }
 

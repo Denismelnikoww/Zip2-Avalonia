@@ -4,7 +4,7 @@ using Avalonia.Platform.Storage;
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Threading.Tasks;
+using Zip2_Avalonia.Coder;
 using Zip2.Services;
 using Zip2.Structs;
 
@@ -15,6 +15,7 @@ public partial class MainWindow : Window
     private readonly BmpReaderService _bmpReader;
     private readonly ImageProcessingService _imageProcessor;
 
+    private string _currentRlePath;
     private string _currentFilePath;
     private byte[] _imageData;
     private int _width;
@@ -26,6 +27,26 @@ public partial class MainWindow : Window
         InitializeComponent();
         _bmpReader = new BmpReaderService();
         _imageProcessor = new ImageProcessingService();
+    }
+
+    private async void BtnSelectRle_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var topLevel = GetTopLevel(this);
+        if (topLevel == null) return;
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Выберите RLE файл",
+            AllowMultiple = false
+        });
+
+        if (files.Count == 0) return;
+
+        _currentRlePath = files[0].Path.LocalPath;
+
+        txtStatus.Text = $"RLE выбран: {Path.GetFileName(_currentRlePath)}";
+
+        btnDecode.IsEnabled = true;
     }
 
     private async void BtnSelectImage_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -75,6 +96,107 @@ public partial class MainWindow : Window
                 btnProcess.IsEnabled = false;
             }
         }
+
+        btnEncode.IsEnabled = true;
+    }
+
+    private async void BtnEncode_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_imageData == null) return;
+
+        try
+        {
+            string baseDir = Path.GetDirectoryName(_currentFilePath)!;
+            string outputDir = Path.Combine(baseDir, "Encoded");
+
+            Directory.CreateDirectory(outputDir);
+
+            string fileName = Path.GetFileNameWithoutExtension(_currentFilePath);
+            string outputPath = Path.Combine(outputDir, fileName + "_encoded.rle");
+
+            using var input = new MemoryStream(_imageData);
+            using var output = new FileStream(outputPath, FileMode.Create);
+
+            RleCoder.Encode(input, output);
+
+            long originalSize = _imageData.Length;
+            long encodedSize = new FileInfo(outputPath).Length;
+
+            double ratio = (double)encodedSize / originalSize;
+            double compressionPercent = (1 - ratio) * 100;
+
+            txtStatus.Text = $"Сжато: {compressionPercent:F2}% | {originalSize} → {encodedSize} байт";
+
+            await new MessageBox
+            {
+                Title = "Готово",
+                Content = $"Файл сохранён:\n{outputPath}\nСжатие: {compressionPercent:F2}%"
+            }.ShowDialog(this);
+        }
+        catch (Exception ex)
+        {
+            txtStatus.Text = $"Ошибка кодирования: {ex.Message}";
+
+            await new MessageBox
+            {
+                Title = "Ошибка",
+                Content = ex.Message
+            }.ShowDialog(this);
+        }
+    }
+
+    private async void BtnDecode_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_currentRlePath == null)
+        {
+            txtStatus.Text = "Сначала выбери RLE файл";
+
+            await new MessageBox
+            {
+                Title = "Ошибка",
+                Content = "RLE файл не выбран"
+            }.ShowDialog(this);
+
+            return;
+        }
+
+        try
+        {
+            string baseDir = Path.GetDirectoryName(_currentRlePath)!;
+            string outputPath = Path.Combine(baseDir, "decoded.bmp");
+
+            byte[] header;
+            using (var fs = new FileStream(_currentFilePath, FileMode.Open))
+            {
+                header = new byte[_bmpReader.ReadHeaders(_currentFilePath).Item1.bfOffBits];
+                fs.Read(header, 0, header.Length);
+            }
+
+            using var input = new FileStream(_currentRlePath, FileMode.Open);
+            using var output = new FileStream(outputPath, FileMode.Create);
+
+            output.Write(header, 0, header.Length);
+
+            RleCoder.Decode(input, output);
+
+            txtStatus.Text = $"Декодировано: {outputPath}";
+
+            await new MessageBox
+            {
+                Title = "Готово",
+                Content = $"Файл восстановлен:\n{outputPath}"
+            }.ShowDialog(this);
+        }
+        catch (Exception ex)
+        {
+            txtStatus.Text = $"Ошибка декодирования: {ex.Message}";
+
+            await new MessageBox
+            {
+                Title = "Ошибка",
+                Content = ex.Message
+            }.ShowDialog(this);
+        }
     }
 
     private void LoadAndDisplayImage(string filePath)
@@ -98,17 +220,18 @@ public partial class MainWindow : Window
         txtHeaderInfo.Text = headerText;
 
         txtImageInfo.Text = $"{Math.Abs(infoHeader.biWidth)} × {Math.Abs(infoHeader.biHeight)} | " +
-                           $"{infoHeader.biBitCount} бит | " +
-                           $"{(infoHeader.biCompression == 0 ? "без сжатия" : "сжато")}";
+                            $"{infoHeader.biBitCount} бит | " +
+                            $"{(infoHeader.biCompression == 0 ? "без сжатия" : "сжато")}";
     }
 
     private string GetHeaderDisplayText(BITMAPFILEHEADER fileHeader, BITMAPINFOHEADER infoHeader)
     {
-        string fileHeaderText = $"bfType:        0x{fileHeader.bfType:X4} ({(char)(fileHeader.bfType & 0xFF)}{(char)(fileHeader.bfType >> 8)})\n" +
-                                $"bfSize:        {fileHeader.bfSize} байт\n" +
-                                $"bfReserved1:   {fileHeader.bfReserved1}\n" +
-                                $"bfReserved2:   {fileHeader.bfReserved2}\n" +
-                                $"bfOffBits:     {fileHeader.bfOffBits} байт\n\n";
+        string fileHeaderText =
+            $"bfType:        0x{fileHeader.bfType:X4} ({(char)(fileHeader.bfType & 0xFF)}{(char)(fileHeader.bfType >> 8)})\n" +
+            $"bfSize:        {fileHeader.bfSize} байт\n" +
+            $"bfReserved1:   {fileHeader.bfReserved1}\n" +
+            $"bfReserved2:   {fileHeader.bfReserved2}\n" +
+            $"bfOffBits:     {fileHeader.bfOffBits} байт\n\n";
 
         int totalPixels = Math.Abs(infoHeader.biWidth) * Math.Abs(infoHeader.biHeight);
         string imageType = infoHeader.biBitCount <= 8 ? "Используется палитра" : "Палитра не используется (TrueColor)";
@@ -180,13 +303,11 @@ public partial class MainWindow : Window
                 await dialog.ShowDialog(this);
             }
 
-            // Выполняем разложение на битовые срезы
             _imageProcessor.SplitIntoBitSlices(_imageData, _width, _height, _bytesPerPixel,
                 outputDirectory, Path.GetFileNameWithoutExtension(_currentFilePath));
 
             txtStatus.Text = $"✅ Готово! Результаты в: {outputDirectory}";
 
-            // Открываем папку с результатами
             OpenFolder(outputDirectory);
 
             var successDialog = new MessageBox
