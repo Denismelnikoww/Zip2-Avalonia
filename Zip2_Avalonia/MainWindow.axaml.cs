@@ -102,24 +102,32 @@ public partial class MainWindow : Window
 
     private async void BtnEncode_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if (_imageData == null) return;
+        if (_currentFilePath == null)
+        {
+            await new MessageBox
+            {
+                Title = "Ошибка",
+                Content = "Сначала выберите BMP файл"
+            }.ShowDialog(this);
+            return;
+        }
 
         try
         {
             string baseDir = Path.GetDirectoryName(_currentFilePath)!;
             string outputDir = Path.Combine(baseDir, "Encoded");
-
             Directory.CreateDirectory(outputDir);
 
             string fileName = Path.GetFileNameWithoutExtension(_currentFilePath);
             string outputPath = Path.Combine(outputDir, fileName + "_encoded.rle");
 
-            using var input = new MemoryStream(_imageData);
-            using var output = new FileStream(outputPath, FileMode.Create);
+            using (var input = new FileStream(_currentFilePath, FileMode.Open))
+            using (var output = new FileStream(outputPath, FileMode.Create))
+            {
+                RleCoder.Encode(input, output);
+            }
 
-            RleCoder.Encode(input, output);
-
-            long originalSize = _imageData.Length;
+            long originalSize = new FileInfo(_currentFilePath).Length;
             long encodedSize = new FileInfo(outputPath).Length;
 
             double ratio = (double)encodedSize / originalSize;
@@ -165,27 +173,36 @@ public partial class MainWindow : Window
             string baseDir = Path.GetDirectoryName(_currentRlePath)!;
             string outputPath = Path.Combine(baseDir, "decoded.bmp");
 
-            byte[] header;
-            using (var fs = new FileStream(_currentFilePath, FileMode.Open))
+            // Восстанавливаем ВЕСЬ BMP файл из RLE
+            using (var input = new FileStream(_currentRlePath, FileMode.Open))
+            using (var output = new FileStream(outputPath, FileMode.Create))
             {
-                header = new byte[_bmpReader.ReadHeaders(_currentFilePath).Item1.bfOffBits];
-                fs.Read(header, 0, header.Length);
+                RleCoder.Decode(input, output);
             }
-
-            using var input = new FileStream(_currentRlePath, FileMode.Open);
-            using var output = new FileStream(outputPath, FileMode.Create);
-
-            output.Write(header, 0, header.Length);
-
-            RleCoder.Decode(input, output);
 
             txtStatus.Text = $"Декодировано: {outputPath}";
 
-            await new MessageBox
+            // Опционально: сразу показываем восстановленное изображение
+            try
             {
-                Title = "Готово",
-                Content = $"Файл восстановлен:\n{outputPath}"
-            }.ShowDialog(this);
+                LoadAndDisplayImage(outputPath);
+                LoadAndDisplayHeaders(outputPath);
+                LoadImageData(outputPath);
+            
+                await new MessageBox
+                {
+                    Title = "Готово",
+                    Content = $"Файл восстановлен и загружен:\n{outputPath}"
+                }.ShowDialog(this);
+            }
+            catch
+            {
+                await new MessageBox
+                {
+                    Title = "Готово",
+                    Content = $"Файл восстановлен:\n{outputPath}\n(но не может быть отображен)"
+                }.ShowDialog(this);
+            }
         }
         catch (Exception ex)
         {
@@ -194,7 +211,7 @@ public partial class MainWindow : Window
             await new MessageBox
             {
                 Title = "Ошибка",
-                Content = ex.Message
+                Content = ex.ToString()
             }.ShowDialog(this);
         }
     }
