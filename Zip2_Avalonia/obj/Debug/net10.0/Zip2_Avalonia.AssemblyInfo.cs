@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Zip2_Avalonia")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+08db4d0586f2295d0fabdd23973dc27d610cdb3a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5dfc9c244e4a0f5eae6c9325592f65ebf4edf6b5")]
 [assembly: System.Reflection.AssemblyProductAttribute("Zip2_Avalonia")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Zip2_Avalonia")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

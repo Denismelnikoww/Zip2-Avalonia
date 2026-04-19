@@ -17,17 +17,17 @@ build_property.PlatformNeutralAssembly =
 build_property.EnforceExtendedAnalyzerRules = 
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = Zip2_Avalonia
-build_property.ProjectDir = /home/denis/RiderProjects/Zip2-Avalonia/Zip2_Avalonia/
+build_property.ProjectDir = D:\Projects\Zip2_Avalonia\Zip2_Avalonia\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.EffectiveAnalysisLevelStyle = 10.0
 build_property.EnableCodeStyleSeverity = 
 
-[/home/denis/RiderProjects/Zip2-Avalonia/Zip2_Avalonia/App.axaml]
+[D:/Projects/Zip2_Avalonia/Zip2_Avalonia/App.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[/home/denis/RiderProjects/Zip2-Avalonia/Zip2_Avalonia/MainWindow.axaml]
+[D:/Projects/Zip2_Avalonia/Zip2_Avalonia/MainWindow.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[/home/denis/RiderProjects/Zip2-Avalonia/Zip2_Avalonia/MessageBox.axaml]
+[D:/Projects/Zip2_Avalonia/Zip2_Avalonia/MessageBox.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml

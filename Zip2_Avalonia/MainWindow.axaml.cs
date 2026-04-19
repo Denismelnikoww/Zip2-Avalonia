@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using Zip2_Avalonia.Coder;
 using Zip2.Services;
+using Zip2.Steganography;
 using Zip2.Structs;
 
 namespace Zip2_Avalonia;
@@ -14,9 +15,11 @@ public partial class MainWindow : Window
 {
     private readonly BmpReaderService _bmpReader;
     private readonly ImageProcessingService _imageProcessor;
+    private readonly BenderSteganographyService _steganography;
 
     private string _currentRlePath;
     private string _currentFilePath;
+    private string _secretImagePath;
     private byte[] _imageData;
     private int _width;
     private int _height;
@@ -27,6 +30,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         _bmpReader = new BmpReaderService();
         _imageProcessor = new ImageProcessingService();
+        _steganography = new BenderSteganographyService();
     }
 
     private async void BtnSelectRle_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -82,7 +86,19 @@ public partial class MainWindow : Window
                 LoadImageData(_currentFilePath);
 
                 btnProcess.IsEnabled = true;
-                txtStatus.Text = $"Загружен: {Path.GetFileName(_currentFilePath)}";
+                btnEmbedSecret.IsEnabled = true;
+                btnExtractSecret.IsEnabled = true;
+                
+                // Проверяем есть ли секрет
+                var (hasSecret, secretW, secretH, error) = _steganography.ValidateStegoImage(_currentFilePath);
+                if (hasSecret)
+                {
+                    txtStatus.Text = $"Загружен: {Path.GetFileName(_currentFilePath)} ( содержит секрет {secretW}x{secretH} )";
+                }
+                else
+                {
+                    txtStatus.Text = $"Загружен: {Path.GetFileName(_currentFilePath)}";
+                }
             }
             catch (Exception ex)
             {
@@ -369,6 +385,122 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             txtStatus.Text = $"Не удалось открыть папку: {ex.Message}";
+        }
+    }
+
+    private async void BtnEmbedSecret_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_currentFilePath == null)
+        {
+            await new MessageBox
+            {
+                Title = "Ошибка",
+                Content = "Сначала выберите BMP файл (контейнер)"
+            }.ShowDialog(this);
+            return;
+        }
+
+        try
+        {
+            // Выбор секретного изображения
+            var topLevel = GetTopLevel(this);
+            var secretFile = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Выберите секретное изображение",
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("BMP files") { Patterns = new[] { "*.bmp" } },
+                    new FilePickerFileType("All files") { Patterns = new[] { "*.*" } }
+                }
+            });
+
+            if (secretFile.Count == 0) return;
+
+            _secretImagePath = secretFile[0].Path.LocalPath;
+
+            // Создаём выходную директорию
+            string baseDir = Path.GetDirectoryName(_currentFilePath)!;
+            string outputDir = Path.Combine(baseDir, "Stego");
+            Directory.CreateDirectory(outputDir);
+
+            string containerName = Path.GetFileNameWithoutExtension(_currentFilePath);
+            string secretName = Path.GetFileNameWithoutExtension(_secretImagePath);
+            string outputPath = Path.Combine(outputDir, $"{containerName}_with_{secretName}_stego.bmp");
+
+            // Встраиваем секретное изображение
+            _steganography.EmbedSecretImage(_currentFilePath, _secretImagePath, outputPath);
+
+            txtStatus.Text = $"Стеганография: секрет встроен в {Path.GetFileName(outputPath)}";
+
+            // Показываем результат
+            LoadAndDisplayImage(outputPath);
+            LoadAndDisplayHeaders(outputPath);
+            LoadImageData(outputPath);
+
+            btnExtractSecret.IsEnabled = true;
+
+            await new MessageBox
+            {
+                Title = "Готово",
+                Content = $"Секретное изображение встроено!\nСохранено: {outputPath}"
+            }.ShowDialog(this);
+        }
+        catch (Exception ex)
+        {
+            await new MessageBox
+            {
+                Title = "Ошибка",
+                Content = ex.Message
+            }.ShowDialog(this);
+            txtStatus.Text = $"Ошибка стеганографии: {ex.Message}";
+        }
+    }
+
+    private async void BtnExtractSecret_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_currentFilePath == null)
+        {
+            await new MessageBox
+            {
+                Title = "Ошибка",
+                Content = "Сначала выберите стегоизображение"
+            }.ShowDialog(this);
+            return;
+        }
+
+        try
+        {
+            string baseDir = Path.GetDirectoryName(_currentFilePath)!;
+            string outputDir = Path.Combine(baseDir, "Extracted");
+            Directory.CreateDirectory(outputDir);
+
+            string outputPath = Path.Combine(outputDir, "extracted_secret.bmp");
+
+            // Извлекаем секретное изображение
+            _steganography.ExtractSecretImage(_currentFilePath, outputPath);
+
+            txtStatus.Text = $"Стеганография: секрет извлечён в {outputPath}";
+
+            await new MessageBox
+            {
+                Title = "Готово",
+                Content = $"Секретное изображение извлечено!\nСохранено: {outputPath}"
+            }.ShowDialog(this);
+
+            // Показываем извлечённое изображение
+            LoadAndDisplayImage(outputPath);
+            LoadAndDisplayHeaders(outputPath);
+            LoadImageData(outputPath);
+        }
+        catch (Exception ex)
+        {
+            txtStatus.Text = $"Ошибка извлечения: {ex.Message}";
+
+            await new MessageBox
+            {
+                Title = "Ошибка извлечения",
+                Content = ex.Message
+            }.ShowDialog(this);
         }
     }
 }

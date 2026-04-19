@@ -215,6 +215,28 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
 
                     <Button
+                        Name="btnEmbedSecret"
+                        Click="BtnEmbedSecret_Click"
+                        Height="44"
+                        MinWidth="180"
+                        Background="#9C27B0"
+                        Foreground="White"
+                        CornerRadius="6"
+                        Content="Встроить секрет"
+                        IsEnabled="False" />
+
+                    <Button
+                        Name="btnExtractSecret"
+                        Click="BtnExtractSecret_Click"
+                        Height="44"
+                        MinWidth="180"
+                        Background="#E91E63"
+                        Foreground="White"
+                        CornerRadius="6"
+                        Content="Извлечь секрет"
+                        IsEnabled="False" />
+
+                    <Button
                         Name="btnEncode"
                         Click="BtnEncode_Click"
                         Height="44"
