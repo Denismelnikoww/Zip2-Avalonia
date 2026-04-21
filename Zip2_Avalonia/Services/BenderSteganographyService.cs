@@ -342,16 +342,18 @@ public class BenderSteganographyService
     // НАСТОЯЩЕЕ РЕШЕНИЕ: СТАБИЛЬНАЯ СОРТИРОВКА
 
     private List<TextureRegion> FindTextureRegions(
-    byte[] data, int width, int height, int size)
+        byte[] data, int width, int height, int size)
     {
         List<TextureRegion> regions = new();
 
-        for (int y = 0; y < height - size; y += size)
+        // 1. Строго фиксированный порядок обхода (ВАЖНО!)
+        for (int y = 0; y <= height - size; y += size)
         {
-            for (int x = 0; x < width - size; x += size)
+            for (int x = 0; x <= width - size; x += size)
             {
                 double var = CalculateVariance(data, x, y, size, width);
 
+                // 2. variance используем только как фильтр
                 if (var > 100)
                 {
                     regions.Add(new TextureRegion
@@ -364,36 +366,8 @@ public class BenderSteganographyService
                 }
             }
         }
-
-        // ИСПОЛЬЗУЕМ ИНДЕКС В МАССИВЕ КАК РЕЗЕРВНЫЙ КРИТЕРИЙ ДЛЯ СОРТИРОВКИ
-        // Сначала сортируем по дисперсии, затем по координатам
-        // Добавим уникальный ID для стабильности
-        var indexedRegions = regions.Select((region, index) => new { Region = region, Index = index }).ToList();
-
-        indexedRegions.Sort((a, b) =>
-        {
-            // Основная сортировка по дисперсии (по убыванию)
-            int varianceCmp = b.Region.Variance.CompareTo(a.Region.Variance);
-            if (varianceCmp != 0)
-                return varianceCmp;
-
-            // Если дисперсии равны, сортируем по координатам
-            int yCmp = a.Region.Y.CompareTo(b.Region.Y);
-            if (yCmp != 0)
-                return yCmp;
-
-            int xCmp = a.Region.X.CompareTo(b.Region.X);
-            if (xCmp != 0)
-                return xCmp;
-
-            // Если все равно равны, используем индекс для стабильности
-            return a.Index.CompareTo(b.Index);
-        });
-
-        return indexedRegions.Select(x => x.Region).ToList();
+        return regions;
     }
-
-
     private double CalculateVariance(
         byte[] data, int sx, int sy, int size, int width)
     {
