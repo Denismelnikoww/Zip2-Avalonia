@@ -89,7 +89,6 @@ public partial class MainWindow : Window
                 btnEmbedSecret.IsEnabled = true;
                 btnExtractSecret.IsEnabled = true;
 
-                // Проверяем есть ли секрет
                 var (hasSecret, secretW, secretH, error) = _steganography.ValidateStegoImage(_currentFilePath);
                 if (hasSecret)
                 {
@@ -189,7 +188,6 @@ public partial class MainWindow : Window
             string baseDir = Path.GetDirectoryName(_currentRlePath)!;
             string outputPath = Path.Combine(baseDir, "decoded.bmp");
 
-            // Восстанавливаем ВЕСЬ BMP файл из RLE
             using (var input = new FileStream(_currentRlePath, FileMode.Open))
             using (var output = new FileStream(outputPath, FileMode.Create))
             {
@@ -198,7 +196,6 @@ public partial class MainWindow : Window
 
             txtStatus.Text = $"Декодировано: {outputPath}";
 
-            // Опционально: сразу показываем восстановленное изображение
             try
             {
                 LoadAndDisplayImage(outputPath);

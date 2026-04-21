@@ -64,12 +64,6 @@
                                 Foreground="#A8E6CF"
                                 FontSize="12"
                                 Text="Готов к работе"/>
-
-                            <TextBlock
-                                Name="txtRleStatus"
-                                Foreground="#FFD580"
-                                FontSize="12"
-                                Text="RLE не выбран"/>
                         </StackPanel>
                     </Border>
 

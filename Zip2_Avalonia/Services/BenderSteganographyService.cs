@@ -21,7 +21,6 @@ public class BenderSteganographyService
         File.AppendAllText(logPath, logEntry);
     }
 
-    // ================= VALIDATE =================
     public (bool hasSecret, int width, int height, string error)
         ValidateStegoImage(string stegoPath)
     {
@@ -38,7 +37,6 @@ public class BenderSteganographyService
             byte[] header = new byte[8];
             int bitIndex = 0;
 
-            // Извлекаем 64 бита заголовка
             for (int i = 0; i < header.Length; i++)
             {
                 byte value = 0;
@@ -64,7 +62,6 @@ public class BenderSteganographyService
                 return (false, 0, 0, "Нет корректного заголовка");
             }
 
-            // Проверяем, достаточно ли данных для извлеченных размеров
             int totalPixels = w * h;
             if (totalPixels > (regions.Count - 64))
             {
@@ -81,7 +78,6 @@ public class BenderSteganographyService
         }
     }
 
-    // ================= EMBED =================
     public void EmbedSecretImage(
         string containerPath,
         string secretPath,
@@ -111,7 +107,6 @@ public class BenderSteganographyService
         byte[] result = new byte[container.Length];
         Array.Copy(container, result, container.Length);
 
-        // КОДИРУЕМ ЗАГОЛОВОК
         byte[] header = EncodeHeader(sw, sh);
 
         if (DEBUG_MODE)
@@ -122,13 +117,12 @@ public class BenderSteganographyService
 
         int bitIndex = 0;
 
-        // Встраиваем 64 бита заголовка
         for (int i = 0; i < header.Length; i++)
         {
             for (int b = 7; b >= 0; b--)
             {
                 byte bit = (byte)((header[i] >> b) & 1);
-                if (DEBUG_MODE && (i == 6 || i == 7)) // Отладка проблемных байтов
+                if (DEBUG_MODE && (i == 6 || i == 7))
                     LogMessage($"Embed - встраиваем бит [{i * 8 + (7 - b)}] (байт {i}, бит {7 - b}): {bit} в регион ({regions[bitIndex].X},{regions[bitIndex].Y})");
 
                 EmbedBitsInBlock(result, regions[bitIndex], bit, width);
@@ -136,7 +130,6 @@ public class BenderSteganographyService
             }
         }
 
-        // Встраиваем данные
         for (int i = 0; i < bits.Length; i++)
         {
             if (DEBUG_MODE && i < 5)
@@ -147,7 +140,6 @@ public class BenderSteganographyService
 
         if (DEBUG_MODE)
         {
-            // Проверка битов заголовка перед сохранением
             LogMessage("Проверка сохраненных битов заголовка ПЕРЕД СОХРАНЕНИЕМ:");
             for (int i = 0; i < 8; i++)
             {
@@ -166,7 +158,6 @@ public class BenderSteganographyService
 
         if (DEBUG_MODE)
         {
-            // Проверка после сохранения
             var (afterSaveData, _, _, _) = _bmpReader.ReadImageData(outputPath);
             LogMessage("Проверка сохраненных битов заголовка ПОСЛЕ СОХРАНЕНИЯ:");
             for (int i = 0; i < 8; i++)
@@ -183,7 +174,6 @@ public class BenderSteganographyService
         }
     }
 
-    // ================= EXTRACT =================
     public void ExtractSecretImage(
         string stegoPath,
         string outputPath)
@@ -196,7 +186,6 @@ public class BenderSteganographyService
         if (DEBUG_MODE)
             LogMessage($"Extract - найдено {regions.Count} регионов");
 
-        // Извлекаем 64 бита заголовка
         byte[] header = new byte[8];
         int bitIndex = 0;
 
@@ -251,8 +240,6 @@ public class BenderSteganographyService
             LogMessage($"Extract - Сохранено изображение {sw}x{sh} в {outputPath}");
     }
 
-    // ================= CORE =================
-
     private byte[] ImageToBits(byte[] imageData, int width, int height)
     {
         List<byte> bits = new();
@@ -283,36 +270,32 @@ public class BenderSteganographyService
         {
             byte val = (byte)(bits[i] * 255);
 
-            image[i * 3 + 0] = val; // R
-            image[i * 3 + 1] = val; // G
-            image[i * 3 + 2] = val; // B
+            image[i * 3 + 0] = val; 
+            image[i * 3 + 1] = val; 
+            image[i * 3 + 2] = val; 
         }
 
         return image;
     }
 
-    // Используем сигнатуру для проверки подлинности заголовка
     private byte[] EncodeHeader(int w, int h)
     {
         byte[] data = new byte[8];
 
-        // Сигнатура для проверки подлинности
         data[0] = 0xDE;
         data[1] = 0xAD;
 
-        // Ограничим максимальные размеры для предотвращения переполнения
         if (w > 65535 || h > 65535)
             throw new ArgumentException("Размеры изображения слишком велики");
 
-        // Ширина (2 байта)
+        // ширина 
         data[2] = (byte)((w >> 8) & 0xFF);
         data[3] = (byte)(w & 0xFF);
 
-        // Высота (2 байта)
+        // высота 
         data[4] = (byte)((h >> 8) & 0xFF);
         data[5] = (byte)(h & 0xFF);
 
-        // Зарезервированные байты (для будущего использования)
         data[6] = 0x00;
         data[7] = 0x00;
 
@@ -324,36 +307,30 @@ public class BenderSteganographyService
         if (d.Length < 8)
             throw new ArgumentException("Недостаточная длина заголовка");
 
-        // Проверяем сигнатуру
         if (d[0] != 0xDE || d[1] != 0xAD)
             throw new InvalidOperationException("Неверная сигнатура заголовка");
 
-        // Читаем ширину и высоту
         int w = (d[2] << 8) | d[3];
         int h = (d[4] << 8) | d[5];
 
-        // Проверяем разумность значений
         if (w <= 0 || h <= 0)
             throw new InvalidOperationException("Неверные размеры в заголовке");
 
         return (w, h);
     }
 
-    // НАСТОЯЩЕЕ РЕШЕНИЕ: СТАБИЛЬНАЯ СОРТИРОВКА
 
     private List<TextureRegion> FindTextureRegions(
         byte[] data, int width, int height, int size)
     {
         List<TextureRegion> regions = new();
 
-        // 1. Строго фиксированный порядок обхода (ВАЖНО!)
         for (int y = 0; y <= height - size; y += size)
         {
             for (int x = 0; x <= width - size; x += size)
             {
                 double var = CalculateVariance(data, x, y, size, width);
 
-                // 2. variance используем только как фильтр
                 if (var > 100)
                 {
                     regions.Add(new TextureRegion
