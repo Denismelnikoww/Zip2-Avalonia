@@ -1,687 +1,439 @@
 using System;
-using System.IO;
+using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Zip2.Services;
 
 namespace Zip2.Steganography;
 
-/// <summary>
-/// Стеганография методом Бендера (Bender)
-/// Метод основан на копировании блоков из случайно выбранной текстурной области
-/// в другую область с похожими статистическими характеристиками.
-/// Это создаёт повторяющиеся блоки, обнаруживаемые по автокорреляции.
-/// </summary>
 public class BenderSteganographyService
 {
-    private readonly BmpReaderService _bmpReader;
-    private readonly BmpWriterService _bmpWriter;
+    private readonly BmpReaderService _bmpReader = new();
+    private readonly BmpWriterService _bmpWriter = new();
 
-    public BenderSteganographyService()
+    private const bool DEBUG_MODE = true;
+
+    private void LogMessage(string message)
     {
-        _bmpReader = new BmpReaderService();
-        _bmpWriter = new BmpWriterService();
+        string logPath = Path.Combine(Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory), "stego_debug.log");
+        string logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}";
+        File.AppendAllText(logPath, logEntry);
     }
 
-    /// <summary>
-    /// Проверяет, содержит ли изображение скрытый секрет
-    /// </summary>
-    public (bool hasSecret, int width, int height, string error) ValidateStegoImage(string stegoPath)
+    // ================= VALIDATE =================
+    public (bool hasSecret, int width, int height, string error)
+        ValidateStegoImage(string stegoPath)
     {
         try
         {
-            var (stegoData, width, height, bpp) = _bmpReader.ReadImageData(stegoPath);
+            var (data, width, height, _) =
+                _bmpReader.ReadImageData(stegoPath);
 
-            // Проверяем что это 24-битное изображение
-            if (bpp != 3)
+            var regions = FindTextureRegions(data, width, height, 16);
+
+            if (regions.Count < 64)
+                return (false, 0, 0, "Недостаточно блоков");
+
+            byte[] header = new byte[8];
+            int bitIndex = 0;
+
+            // Извлекаем 64 бита заголовка
+            for (int i = 0; i < header.Length; i++)
             {
-                return (false, 0, 0, "Изображение не 24-битное");
+                byte value = 0;
+                for (int b = 7; b >= 0; b--)
+                {
+                    byte bit = ExtractBitsFromBlock(data, regions[bitIndex], width);
+                    value |= (byte)((bit & 1) << b);
+                    bitIndex++;
+                }
+                header[i] = value;
+
+                if (DEBUG_MODE)
+                    LogMessage($"Validate - Заголовок[{i}] = 0x{header[i]:X2}");
             }
 
-            // Извлекаем LSB
-            byte[] stegoLsb = ExtractLSB(stegoData, width, height, bpp);
+            var (w, h) = DecodeHeader(header);
 
-            // Пробуем извлечь размеры
-            var (secretWidth, secretHeight) = DecodeDimensions(stegoLsb);
+            if (DEBUG_MODE)
+                LogMessage($"Validate - Извлеченный заголовок: ширина={w}, высота={h}, регионов={regions.Count}");
 
-            // Валидация размеров - если нулевые или отрицательные, значит нет секрета
-            if (secretWidth <= 0 || secretHeight <= 0)
+            if (w <= 0 || h <= 0 || w > width || h > height)
             {
-                return (false, 0, 0, "Секрет не найден");
+                return (false, 0, 0, "Нет корректного заголовка");
             }
 
-            // Проверяем что размеры разумные (не больше контейнера)
-            if (secretWidth > width || secretHeight > height)
+            // Проверяем, достаточно ли данных для извлеченных размеров
+            int totalPixels = w * h;
+            if (totalPixels > (regions.Count - 64))
             {
-                return (false, 0, 0, "Секрет не найден (некорректные размеры)");
+                return (false, 0, 0, "Недостаточно данных для извлеченных размеров");
             }
 
-            int containerPixels = width * height;
-            int headerPixels = 22;
-            int maxPossiblePixels = (containerPixels - headerPixels);
-
-            if (secretWidth * secretHeight > maxPossiblePixels)
-            {
-                return (false, 0, 0, "Секрет не найден");
-            }
-
-            return (true, secretWidth, secretHeight, "");
+            return (true, w, h, "");
         }
-        catch
+        catch (Exception ex)
         {
-            return (false, 0, 0, "Секрет не найден");
+            if (DEBUG_MODE)
+                LogMessage($"Ошибка ValidateStegoImage: {ex.Message}");
+            return (false, 0, 0, "Ошибка: " + ex.Message);
         }
     }
 
-    /// <summary>
-    /// Извлекает младший битовый слой (LSB) из изображения
-    /// </summary>
-    public byte[] ExtractLSB(byte[] imageData, int width, int height, int bytesPerPixel)
-    {
-        int totalPixels = width * height;
-        byte[] lsbData = new byte[totalPixels];
-
-        if (bytesPerPixel == 3)
-        {
-            // 24-битное изображение - извлекаем LSB из каждого цветового канала
-            for (int i = 0; i < totalPixels; i++)
-            {
-                // LSB каждого канала: R, G, B
-                byte r = (byte)(imageData[i * 3 + 2] & 1);
-                byte g = (byte)(imageData[i * 3 + 1] & 1);
-                byte b = (byte)(imageData[i * 3 + 0] & 1);
-
-                // Упаковываем 3 бита в один байт (по сути это наш контейнер)
-                lsbData[i] = (byte)((r << 2) | (g << 1) | b);
-            }
-        }
-        else if (bytesPerPixel == 1)
-        {
-            // 8-битное изображение
-            for (int i = 0; i < totalPixels; i++)
-            {
-                lsbData[i] = (byte)(imageData[i] & 1);
-            }
-        }
-
-        return lsbData;
-    }
-
-    /// <summary>
-    /// Встраивает секретное изображение в LSB контейнера методом Бендера
-    /// </summary>
+    // ================= EMBED =================
     public void EmbedSecretImage(
-        string containerPath,
-        string secretImagePath,
-        string outputPath,
-        int blockSize = 8)
-    {
-        // Читаем контейнер
-        var (containerData, containerWidth, containerHeight, containerBpp) =
-            _bmpReader.ReadImageData(containerPath);
-
-        // Читаем секретное изображение
-        var (secretData, secretWidth, secretHeight, secretBpp) =
-            _bmpReader.ReadImageData(secretImagePath);
-
-        // Рассчитываем ёмкость контейнера
-        // LSB: 3 бита на пиксель (по 1 биту на R, G, B)
-        // Первые 22 пикселя (66 бит) используются для заголовка
-        int containerPixels = containerWidth * containerHeight;
-        int headerPixels = 22;
-        int availablePixels = containerPixels - headerPixels;
-        int availableBits = availablePixels * 3; // 3 бита на пиксель
-
-        // Секретное изображение: 1 байт на пиксель ( grayscale )
-        int secretPixels = secretWidth * secretHeight;
-        int secretBitsRequired = secretPixels * 8; // 8 бит на пиксель
-
-        // Проверяем достаточно ли места
-        if (secretBitsRequired > availableBits)
-        {
-            throw new Exception(
-                $"Контейнер слишком мал для секретного изображения!\n" +
-                $"Доступно: {availableBits / 8} байт ({availableBits} бит)\n" +
-                $"Требуется: {secretBitsRequired / 8} байт ({secretBitsRequired} бит)\n" +
-                $"Размер контейнера: {containerWidth}x{containerHeight} = {containerPixels} пикселей\n" +
-                $"Размер секрета: {secretWidth}x{secretHeight} = {secretPixels} пикселей");
-        }
-
-        // Проверяем что контейнер 24-битный
-        if (containerBpp != 3)
-        {
-            throw new Exception("Контейнер должен быть 24-битным BMP изображением");
-        }
-
-        // Создаём копию контейнера для модификации
-        byte[] result = new byte[containerData.Length];
-        Array.Copy(containerData, result, containerData.Length);
-
-        // Извлекаем LSB контейнера
-        byte[] containerLsb = ExtractLSB(containerData, containerWidth, containerHeight, containerBpp);
-
-        // Кодируем размер секретного изображения в первых пикселях
-        EncodeDimensions(containerLsb, secretWidth, secretHeight);
-
-        // Кодируем данные секретного изображения в LSB
-        EncodeSecretData(containerLsb, secretData, secretWidth, secretHeight, containerWidth);
-
-        // Встраиваем модифицированный LSB обратно в изображение
-        EmbedLSB(result, containerLsb, containerWidth, containerHeight, containerBpp);
-
-        // Сохраняем результат
-        _bmpWriter.SaveBmp24Color(outputPath, result, containerWidth, containerHeight);
-    }
-
-    /// <summary>
-    /// Извлекает секретное изображение из стегоизображения
-    /// </summary>
-    public void ExtractSecretImage(
-        string stegoImagePath,
-        string outputPath)
-    {
-        // Читаем стегоизображение
-        var (stegoData, width, height, bpp) =
-            _bmpReader.ReadImageData(stegoImagePath);
-
-        // Проверяем что это 24-битное изображение
-        if (bpp != 3)
-        {
-            throw new Exception("Стегоизображение должно быть 24-битным BMP");
-        }
-
-        // Извлекаем LSB
-        byte[] stegoLsb = ExtractLSB(stegoData, width, height, bpp);
-
-        // Извлекаем размеры секретного изображения
-        var (secretWidth, secretHeight) = DecodeDimensions(stegoLsb);
-
-        // Валидация размеров — защита от переполнения
-        int containerPixels = width * height;
-        int headerPixels = 22;
-        int maxPossiblePixels = (containerPixels - headerPixels);
-
-        // Более мягкая проверка - если размеры некорректные, значит нет секрета
-        if (secretWidth <= 0 || secretHeight <= 0)
-        {
-            throw new Exception("В изображении не найден скрытый секрет");
-        }
-
-        if (secretWidth > width || secretHeight > height)
-        {
-            throw new Exception(
-                $"Размеры секрета превышают размеры контейнера!\n" +
-                $"Секрет: {secretWidth}x{secretHeight}\n" +
-                $"Контейнер: {width}x{height}");
-        }
-
-        if (secretWidth * secretHeight > maxPossiblePixels)
-        {
-            throw new Exception(
-                $"Секретное изображение слишком большое для этого контейнера!\n" +
-                $"Максимум: {maxPossiblePixels} пикселей\n" +
-                $"Секрет: {secretWidth * secretHeight} пикселей");
-        }
-
-        // Извлекаем данные секретного изображения
-        byte[] secretData = DecodeSecretData(stegoLsb, secretWidth, secretHeight, width);
-
-        // Создаём RGB данные для секретного изображения (уже в RGB из DecodeSecretData)
-        // Сохраняем
-        _bmpWriter.SaveBmp24Color(outputPath, secretData, secretWidth, secretHeight);
-    }
-
-    /// <summary>
-    /// Метод Бендера: копирование блоков между текстурными областями
-    /// </summary>
-    public void EmbedWithBlockCopying(
         string containerPath,
         string secretPath,
         string outputPath,
         int blockSize = 16)
     {
-        // Читаем контейнер
-        var (containerData, containerWidth, containerHeight, containerBpp) =
+        var (container, width, height, _) =
             _bmpReader.ReadImageData(containerPath);
 
-        // Читаем секретное изображение и преобразуем в битовый поток
-        var (secretData, secretWidth, secretHeight, _) =
+        var (secret, sw, sh, _) =
             _bmpReader.ReadImageData(secretPath);
 
-        // Создаём битовый поток из секретного изображения
-        byte[] secretBits = ImageToBits(secretData, secretWidth * secretHeight);
+        if (DEBUG_MODE)
+            LogMessage($"Embed - контейнер {width}x{height}, секрет {sw}x{sh}");
 
-        // Копируем контейнер
-        byte[] result = new byte[containerData.Length];
-        Array.Copy(containerData, result, containerData.Length);
+        byte[] bits = ImageToBits(secret, sw, sh);
+        int totalRequired = bits.Length + 64; // 64 для заголовка
 
-        // Находим текстурные области
-        List<TextureRegion> textureRegions = FindTextureRegions(
-            containerData, containerWidth, containerHeight, blockSize);
+        var regions = FindTextureRegions(container, width, height, blockSize);
 
-        if (textureRegions.Count < 2)
+        if (DEBUG_MODE)
+            LogMessage($"Embed - требуются {totalRequired} регионов, доступно {regions.Count}");
+
+        if (regions.Count < totalRequired)
+            throw new Exception($"Недостаточно текстурных блоков: доступно {regions.Count}, требуется {totalRequired}");
+
+        byte[] result = new byte[container.Length];
+        Array.Copy(container, result, container.Length);
+
+        // КОДИРУЕМ ЗАГОЛОВОК
+        byte[] header = EncodeHeader(sw, sh);
+
+        if (DEBUG_MODE)
         {
-            throw new Exception("Недостаточно текстурных областей для стеганографии");
+            LogMessage($"Embed - Кодируем заголовок: w={sw}, h={sh}");
+            LogMessage($"Embed - Заголовок в байтах: {BitConverter.ToString(header)}");
         }
 
-        // Кодируем заголовок (размеры изображения)
-        byte[] header = EncodeHeader(secretWidth, secretHeight);
         int bitIndex = 0;
 
-        // Встраиваем заголовок в первые блоки
-        for (int i = 0; i < header.Length && i < textureRegions.Count; i++)
+        // Встраиваем 64 бита заголовка
+        for (int i = 0; i < header.Length; i++)
         {
-            EmbedBitsInBlock(result, textureRegions[i], header[i], containerWidth);
-            bitIndex += 8;
+            for (int b = 7; b >= 0; b--)
+            {
+                byte bit = (byte)((header[i] >> b) & 1);
+                if (DEBUG_MODE && (i == 6 || i == 7)) // Отладка проблемных байтов
+                    LogMessage($"Embed - встраиваем бит [{i * 8 + (7 - b)}] (байт {i}, бит {7 - b}): {bit} в регион ({regions[bitIndex].X},{regions[bitIndex].Y})");
+
+                EmbedBitsInBlock(result, regions[bitIndex], bit, width);
+                bitIndex++;
+            }
         }
 
-        // Встраиваем данные изображения в блоки
-        int regionIndex = header.Length;
-        for (int i = 0; i < secretBits.Length && regionIndex < textureRegions.Count; i++)
+        // Встраиваем данные
+        for (int i = 0; i < bits.Length; i++)
         {
-            // Копируем блок из одной текстурной области в другую
-            // Это создаёт повторяющиеся паттерны
-            TextureRegion source = textureRegions[regionIndex % textureRegions.Count];
-            TextureRegion dest = textureRegions[(regionIndex + 1) % textureRegions.Count];
+            if (DEBUG_MODE && i < 5)
+                LogMessage($"Embed - встраиваем бит данных [{i + 64}]: {bits[i]} в регион ({regions[bitIndex + i].X},{regions[bitIndex + i].Y})");
 
-            CopyBlockWithModification(result, source, dest, secretBits[i], containerWidth);
-            regionIndex++;
+            EmbedBitsInBlock(result, regions[bitIndex + i], bits[i], width);
         }
 
-        // Сохраняем результат
-        _bmpWriter.SaveBmp24Color(outputPath, result, containerWidth, containerHeight);
+        if (DEBUG_MODE)
+        {
+            // Проверка битов заголовка перед сохранением
+            LogMessage("Проверка сохраненных битов заголовка ПЕРЕД СОХРАНЕНИЕМ:");
+            for (int i = 0; i < 8; i++)
+            {
+                byte value = 0;
+                for (int b = 7; b >= 0; b--)
+                {
+                    int regionIdx = i * 8 + (7 - b);
+                    byte extracted = ExtractBitsFromBlock(result, regions[regionIdx], width);
+                    value |= (byte)((extracted & 1) << b);
+                }
+                LogMessage($"  Байт [{i}] в памяти: 0x{value:X2} (ожидаем 0x{header[i]:X2})");
+            }
+        }
+
+        _bmpWriter.SaveBmp24Color(outputPath, result, width, height);
+
+        if (DEBUG_MODE)
+        {
+            // Проверка после сохранения
+            var (afterSaveData, _, _, _) = _bmpReader.ReadImageData(outputPath);
+            LogMessage("Проверка сохраненных битов заголовка ПОСЛЕ СОХРАНЕНИЯ:");
+            for (int i = 0; i < 8; i++)
+            {
+                byte value = 0;
+                for (int b = 7; b >= 0; b--)
+                {
+                    int regionIdx = i * 8 + (7 - b);
+                    byte extracted = ExtractBitsFromBlock(afterSaveData, regions[regionIdx], width);
+                    value |= (byte)((extracted & 1) << b);
+                }
+                LogMessage($"  Байт [{i}] после сохранения: 0x{value:X2} (ожидаем 0x{header[i]:X2})");
+            }
+        }
     }
 
-    /// <summary>
-    /// Извлечение данных методом Бендера
-    /// </summary>
-    public void ExtractWithBlockCopying(
+    // ================= EXTRACT =================
+    public void ExtractSecretImage(
         string stegoPath,
         string outputPath)
     {
-        var (stegoData, width, height, _) = _bmpReader.ReadImageData(stegoPath);
+        var (data, width, height, _) =
+            _bmpReader.ReadImageData(stegoPath);
 
-        // Находим текстурные области
-        List<TextureRegion> textureRegions = FindTextureRegions(stegoData, width, height, 16);
+        var regions = FindTextureRegions(data, width, height, 16);
 
-        // Извлекаем заголовок
+        if (DEBUG_MODE)
+            LogMessage($"Extract - найдено {regions.Count} регионов");
+
+        // Извлекаем 64 бита заголовка
         byte[] header = new byte[8];
-        for (int i = 0; i < header.Length && i < textureRegions.Count; i++)
-        {
-            header[i] = ExtractBitsFromBlock(stegoData, textureRegions[i], width);
-        }
-
-        var (secretWidth, secretHeight) = DecodeHeader(header);
-
-        // Защита от переполнения и некорректных данных
-        if (secretWidth <= 0 || secretHeight <= 0)
-        {
-            throw new Exception("Неверные размеры в заголовке стегоизображения");
-        }
-
-        // Ограничиваем максимальное количество извлекаемых пикселей
-        int maxPixels = width * height;
-        long requiredPixels = (long)secretWidth * secretHeight;
-        if (requiredPixels > maxPixels)
-        {
-            throw new Exception($"Размеры секрета превышают размеры контейнера: {secretWidth}x{secretHeight}");
-        }
-
-        // Ограничиваем также от переполнения при умножении
-        int safeMaxPixels = Math.Min(textureRegions.Count - 8, maxPixels);
-        if (requiredPixels > safeMaxPixels)
-        {
-            throw new Exception($"Слишком много пикселей для извлечения: {requiredPixels} > {safeMaxPixels}");
-        }
-
-        // Извлекаем данные
-        List<byte> secretBits = new List<byte>();
-        int targetPixels = secretWidth * secretHeight;
-        for (int i = header.Length; i < textureRegions.Count && secretBits.Count < targetPixels; i++)
-        {
-            TextureRegion source = textureRegions[i % textureRegions.Count];
-            TextureRegion dest = textureRegions[(i + 1) % textureRegions.Count];
-
-            byte bit = ExtractModification(stegoData, source, dest, width);
-            secretBits.Add(bit);
-        }
-
-        // Преобразуем биты в изображение
-        byte[] secretRgb = BitsToImage(secretBits.ToArray(), secretWidth, secretHeight);
-        _bmpWriter.SaveBmp24Color(outputPath, secretRgb, secretWidth, secretHeight);
-    }
-
-    #region Private Methods
-
-    private void EncodeDimensions(byte[] lsb, int width, int height)
-    {
-        // Кодируем 64 бита (8 байт) в первые 22 пикселя LSB
-        // Каждый пиксель LSB содержит 3 бита
-        // 64 бита / 3 бита = 21.33 пикселя, округляем до 22
-
-        byte[] widthBytes = new byte[] {
-            (byte)((width >> 24) & 0xFF),
-            (byte)((width >> 16) & 0xFF),
-            (byte)((width >> 8) & 0xFF),
-            (byte)(width & 0xFF)
-        };
-
-        byte[] heightBytes = new byte[] {
-            (byte)((height >> 24) & 0xFF),
-            (byte)((height >> 16) & 0xFF),
-            (byte)((height >> 8) & 0xFF),
-            (byte)(height & 0xFF)
-        };
-
-        byte[] allBytes = new byte[8];
-        Array.Copy(widthBytes, 0, allBytes, 0, 4);
-        Array.Copy(heightBytes, 0, allBytes, 4, 4);
-
-        // Кодируем 8 байт (64 бита) в пиксели LSB
-        int bitIndex = 0;
-        for (int i = 0; i < 22 && i < lsb.Length; i++)
-        {
-            byte bits = 0;
-            for (int j = 0; j < 3; j++)
-            {
-                if (bitIndex < 64)
-                {
-                    int byteIndex = bitIndex / 8;
-                    int bitPos = 7 - (bitIndex % 8);
-                    int bit = (allBytes[byteIndex] >> bitPos) & 1;
-                    bits = (byte)((bits << 1) | bit);
-                }
-                bitIndex++;
-            }
-            lsb[i] = (byte)((lsb[i] & 0xF8) | bits);
-        }
-    }
-
-    private (int width, int height) DecodeDimensions(byte[] lsb)
-    {
-        // Декодируем 64 бита из первых 22 пикселей LSB
-        byte[] allBytes = new byte[8];
         int bitIndex = 0;
 
-        for (int i = 0; i < 22 && i < lsb.Length; i++)
+        for (int i = 0; i < header.Length; i++)
         {
-            // Извлекаем 3 бита из пикселя
-            byte bits = (byte)(lsb[i] & 7);
-
-            for (int j = 0; j < 3; j++)
+            byte value = 0;
+            for (int b = 7; b >= 0; b--)
             {
-                if (bitIndex < 64)
-                {
-                    int byteIndex = bitIndex / 8;
-                    int bitPos = 7 - (bitIndex % 8);
-                    int bit = (bits >> (2 - j)) & 1;
-                    if (bit == 1)
-                    {
-                        allBytes[byteIndex] = (byte)(allBytes[byteIndex] | (1 << bitPos));
-                    }
-                }
+                byte bit = ExtractBitsFromBlock(data, regions[bitIndex], width);
+                value |= (byte)((bit & 1) << b);
                 bitIndex++;
             }
+            header[i] = value;
+
+            if (DEBUG_MODE)
+                LogMessage($"Extract - Извлечен байт заголовка [{i}]: 0x{header[i]:X2}");
         }
 
-        int width = (allBytes[0] << 24) | (allBytes[1] << 16) | (allBytes[2] << 8) | allBytes[3];
-        int height = (allBytes[4] << 24) | (allBytes[5] << 16) | (allBytes[6] << 8) | allBytes[7];
+        var (sw, sh) = DecodeHeader(header);
 
-        return (width, height);
+        if (DEBUG_MODE)
+            LogMessage($"Extract - Декодированный заголовок: ширина={sw}, высота={sh}");
+
+        if (sw <= 0 || sh <= 0)
+            throw new Exception($"Ошибка заголовка: w={sw}, h={sh}");
+
+        int totalPixels = sw * sh;
+        int availableDataBlocks = regions.Count - 64;
+
+        if (DEBUG_MODE)
+            LogMessage($"Extract - Требуется {totalPixels} пикселей, доступно {availableDataBlocks} блоков данных");
+
+        if (totalPixels > availableDataBlocks)
+            throw new Exception($"Недостаточно данных: требуется {totalPixels}, доступно {availableDataBlocks}");
+
+        List<byte> bits = new();
+
+        for (int i = 0; i < totalPixels; i++)
+        {
+            byte bit = ExtractBitsFromBlock(data, regions[i + 64], width);
+            bits.Add(bit);
+        }
+
+        if (DEBUG_MODE)
+            LogMessage($"Extract - Извлечено {bits.Count} бит данных");
+
+        byte[] image = BitsToImage(bits.ToArray(), sw, sh);
+
+        _bmpWriter.SaveBmp24Color(outputPath, image, sw, sh);
+
+        if (DEBUG_MODE)
+            LogMessage($"Extract - Сохранено изображение {sw}x{sh} в {outputPath}");
     }
 
-    private void EncodeSecretData(byte[] lsb, byte[] secretData, int secretWidth, int secretHeight, int containerWidth)
+    // ================= CORE =================
+
+    private byte[] ImageToBits(byte[] imageData, int width, int height)
     {
-        int offset = 22; // Пропускаем заголовок (22 пикселя по 3 бита = 66 бит ≈ 64 бита)
+        List<byte> bits = new();
+        int totalPixels = width * height;
 
-        int secretPixels = secretWidth * secretHeight;
-
-        // Защита от пустых данных
-        if (secretPixels <= 0 || secretData.Length == 0)
+        for (int i = 0; i < totalPixels; i++)
         {
-            return;
-        }
+            int blueIndex = i * 3 + 2;
 
-        // Определяем количество байт на пиксель в секретном изображении
-        int secretBytesPerPixel = secretData.Length / secretPixels;
-        if (secretBytesPerPixel < 1) secretBytesPerPixel = 1;
-
-        for (int i = 0; i < secretPixels && offset < lsb.Length; i++)
-        {
-            // Берём значение пикселя (grayscale)
-            byte val;
-            if (secretBytesPerPixel >= 3)
+            if (blueIndex < imageData.Length)
             {
-                // 24-битное изображение - берём R канал
-                val = secretData[i * 3 + 2];
-            }
-            else
-            {
-                // 8-битное изображение - берём напрямую
-                val = secretData[i];
-            }
-
-            // Кодируем 8 бит в 3 пикселя LSB (по 3 бита на пиксель)
-            lsb[offset] = (byte)((lsb[offset] & 0xF8) | ((val >> 5) & 7));
-            offset++;
-            if (offset >= lsb.Length) break;
-
-            lsb[offset] = (byte)((lsb[offset] & 0xF8) | ((val >> 2) & 7));
-            offset++;
-            if (offset >= lsb.Length) break;
-
-            lsb[offset] = (byte)((lsb[offset] & 0xF8) | (val & 7));
-            offset++;
-        }
-    }
-
-    private byte[] DecodeSecretData(byte[] lsb, int secretWidth, int secretHeight, int containerWidth)
-    {
-        int totalPixels = secretWidth * secretHeight;
-        byte[] result = new byte[totalPixels * 3]; // RGB данные
-
-        int offset = 22; // Пропускаем заголовок (22 пикселя)
-        for (int i = 0; i < totalPixels && offset < lsb.Length; i++)
-        {
-            // Извлекаем 3 бита из каждого пикселя LSB
-            byte b0 = (byte)(lsb[offset] & 7);
-            offset++;
-            if (offset >= lsb.Length) break;
-
-            byte b1 = (byte)(lsb[offset] & 7);
-            offset++;
-            if (offset >= lsb.Length) break;
-
-            byte b2 = (byte)(lsb[offset] & 7);
-            offset++;
-
-            // Собираем 8 бит обратно
-            byte val = (byte)((b0 << 5) | (b1 << 2) | b2);
-
-            // Записываем как RGB (три канала одинаковые = grayscale)
-            result[i * 3 + 0] = val; // B
-            result[i * 3 + 1] = val; // G
-            result[i * 3 + 2] = val; // R
-        }
-
-        return result;
-    }
-
-    private void EmbedLSB(byte[] imageData, byte[] lsbData, int width, int height, int bytesPerPixel)
-    {
-        if (bytesPerPixel == 3)
-        {
-            for (int i = 0; i < lsbData.Length; i++)
-            {
-                byte r = (byte)((lsbData[i] >> 2) & 1);
-                byte g = (byte)((lsbData[i] >> 1) & 1);
-                byte b = (byte)(lsbData[i] & 1);
-
-                imageData[i * 3 + 2] = (byte)((imageData[i * 3 + 2] & 0xFE) | r);
-                imageData[i * 3 + 1] = (byte)((imageData[i * 3 + 1] & 0xFE) | g);
-                imageData[i * 3 + 0] = (byte)((imageData[i * 3 + 0] & 0xFE) | b);
+                byte lsb = (byte)(imageData[blueIndex] & 1);
+                bits.Add(lsb);
             }
         }
-    }
 
-    private byte[] ImageToBits(byte[] imageData, int pixelCount)
-    {
-        List<byte> bits = new List<byte>();
-        for (int i = 0; i < pixelCount; i++)
-        {
-            bits.Add((byte)(imageData[i] & 1));
-        }
+        if (DEBUG_MODE)
+            LogMessage($"ImageToBits - преобразовано {bits.Count} пикселей");
+
         return bits.ToArray();
     }
 
     private byte[] BitsToImage(byte[] bits, int width, int height)
     {
-        byte[] image = new byte[width * height];
-        for (int i = 0; i < image.Length && i < bits.Length; i++)
+        byte[] image = new byte[width * height * 3];
+
+        for (int i = 0; i < width * height && i < bits.Length; i++)
         {
-            image[i] = (byte)(bits[i] * 255);
+            byte val = (byte)(bits[i] * 255);
+
+            image[i * 3 + 0] = val; // R
+            image[i * 3 + 1] = val; // G
+            image[i * 3 + 2] = val; // B
         }
+
         return image;
     }
 
-    private byte[] EncodeHeader(int width, int height)
+    // Используем сигнатуру для проверки подлинности заголовка
+    private byte[] EncodeHeader(int w, int h)
     {
-        byte[] header = new byte[8];
-        header[0] = (byte)((width >> 24) & 0xFF);
-        header[1] = (byte)((width >> 16) & 0xFF);
-        header[2] = (byte)((width >> 8) & 0xFF);
-        header[3] = (byte)(width & 0xFF);
-        header[4] = (byte)((height >> 24) & 0xFF);
-        header[5] = (byte)((height >> 16) & 0xFF);
-        header[6] = (byte)((height >> 8) & 0xFF);
-        header[7] = (byte)(height & 0xFF);
-        return header;
+        byte[] data = new byte[8];
+
+        // Сигнатура для проверки подлинности
+        data[0] = 0xDE;
+        data[1] = 0xAD;
+
+        // Ограничим максимальные размеры для предотвращения переполнения
+        if (w > 65535 || h > 65535)
+            throw new ArgumentException("Размеры изображения слишком велики");
+
+        // Ширина (2 байта)
+        data[2] = (byte)((w >> 8) & 0xFF);
+        data[3] = (byte)(w & 0xFF);
+
+        // Высота (2 байта)
+        data[4] = (byte)((h >> 8) & 0xFF);
+        data[5] = (byte)(h & 0xFF);
+
+        // Зарезервированные байты (для будущего использования)
+        data[6] = 0x00;
+        data[7] = 0x00;
+
+        return data;
     }
 
-    private (int width, int height) DecodeHeader(byte[] header)
+    private (int, int) DecodeHeader(byte[] d)
     {
-        int width = (header[0] << 24) | (header[1] << 16) | (header[2] << 8) | header[3];
-        int height = (header[4] << 24) | (header[5] << 16) | (header[6] << 8) | header[7];
-        return (width, height);
+        if (d.Length < 8)
+            throw new ArgumentException("Недостаточная длина заголовка");
+
+        // Проверяем сигнатуру
+        if (d[0] != 0xDE || d[1] != 0xAD)
+            throw new InvalidOperationException("Неверная сигнатура заголовка");
+
+        // Читаем ширину и высоту
+        int w = (d[2] << 8) | d[3];
+        int h = (d[4] << 8) | d[5];
+
+        // Проверяем разумность значений
+        if (w <= 0 || h <= 0)
+            throw new InvalidOperationException("Неверные размеры в заголовке");
+
+        return (w, h);
     }
 
-    private List<TextureRegion> FindTextureRegions(byte[] imageData, int width, int height, int blockSize)
-    {
-        List<TextureRegion> regions = new List<TextureRegion>();
+    // НАСТОЯЩЕЕ РЕШЕНИЕ: СТАБИЛЬНАЯ СОРТИРОВКА
 
-        for (int y = 0; y < height - blockSize; y += blockSize)
+    private List<TextureRegion> FindTextureRegions(
+    byte[] data, int width, int height, int size)
+    {
+        List<TextureRegion> regions = new();
+
+        for (int y = 0; y < height - size; y += size)
         {
-            for (int x = 0; x < width - blockSize; x += blockSize)
+            for (int x = 0; x < width - size; x += size)
             {
-                double variance = CalculateVariance(imageData, x, y, blockSize, width);
-                if (variance > 100) // Порог текстурности
+                double var = CalculateVariance(data, x, y, size, width);
+
+                if (var > 100)
                 {
-                    regions.Add(new TextureRegion { X = x, Y = y, Size = blockSize, Variance = variance });
+                    regions.Add(new TextureRegion
+                    {
+                        X = x,
+                        Y = y,
+                        Size = size,
+                        Variance = var
+                    });
                 }
             }
         }
 
-        // Сортируем по дисперсии
-        regions.Sort((a, b) => b.Variance.CompareTo(a.Variance));
+        // ИСПОЛЬЗУЕМ ИНДЕКС В МАССИВЕ КАК РЕЗЕРВНЫЙ КРИТЕРИЙ ДЛЯ СОРТИРОВКИ
+        // Сначала сортируем по дисперсии, затем по координатам
+        // Добавим уникальный ID для стабильности
+        var indexedRegions = regions.Select((region, index) => new { Region = region, Index = index }).ToList();
 
-        return regions;
+        indexedRegions.Sort((a, b) =>
+        {
+            // Основная сортировка по дисперсии (по убыванию)
+            int varianceCmp = b.Region.Variance.CompareTo(a.Region.Variance);
+            if (varianceCmp != 0)
+                return varianceCmp;
+
+            // Если дисперсии равны, сортируем по координатам
+            int yCmp = a.Region.Y.CompareTo(b.Region.Y);
+            if (yCmp != 0)
+                return yCmp;
+
+            int xCmp = a.Region.X.CompareTo(b.Region.X);
+            if (xCmp != 0)
+                return xCmp;
+
+            // Если все равно равны, используем индекс для стабильности
+            return a.Index.CompareTo(b.Index);
+        });
+
+        return indexedRegions.Select(x => x.Region).ToList();
     }
 
-    private double CalculateVariance(byte[] imageData, int startX, int startY, int blockSize, int width)
+
+    private double CalculateVariance(
+        byte[] data, int sx, int sy, int size, int width)
     {
-        long sum = 0;
-        long sumSq = 0;
+        long sum = 0, sumSq = 0;
         int count = 0;
 
-        for (int y = startY; y < startY + blockSize && y < imageData.Length / 3; y++)
+        for (int y = sy; y < sy + size; y++)
         {
-            for (int x = startX; x < startX + blockSize && x < width; x++)
+            for (int x = sx; x < sx + size; x++)
             {
                 int idx = (y * width + x) * 3;
-                byte gray = (byte)((imageData[idx] + imageData[idx + 1] + imageData[idx + 2]) / 3);
-                sum += gray;
-                sumSq += gray * gray;
+
+                byte g = (byte)(
+                    (data[idx] + data[idx + 1] + data[idx + 2]) / 3);
+
+                sum += g;
+                sumSq += g * g;
                 count++;
             }
         }
 
-        if (count == 0) return 0;
-
         double mean = (double)sum / count;
-        double variance = (double)sumSq / count - mean * mean;
-        return variance;
+        return (double)sumSq / count - mean * mean;
     }
 
-    private void EmbedBitsInBlock(byte[] imageData, TextureRegion region, byte data, int width)
+    private void EmbedBitsInBlock(
+        byte[] data, TextureRegion r, byte value, int width)
     {
-        // Модифицируем LSB пикселей в блоке для кодирования данных
-        for (int y = region.Y; y < region.Y + region.Size && y < imageData.Length / (width * 3); y++)
-        {
-            for (int x = region.X; x < region.X + region.Size && x < width; x++)
-            {
-                int idx = (y * width + x) * 3;
-                byte bit = (byte)((data >> ((x - region.X) + (y - region.Y) * region.Size) % 8) & 1);
-                imageData[idx] = (byte)((imageData[idx] & 0xFE) | bit);
-            }
-        }
+        int bit = value & 1;
+
+        int idx = (r.Y * width + r.X) * 3;
+
+        data[idx] = (byte)((data[idx] & 0xFE) | bit);
     }
 
-    private byte ExtractBitsFromBlock(byte[] imageData, TextureRegion region, int width)
+    private byte ExtractBitsFromBlock(
+        byte[] data, TextureRegion r, int width)
     {
-        byte result = 0;
-        int bitPos = 0;
-
-        for (int y = region.Y; y < region.Y + region.Size && y < imageData.Length / (width * 3); y++)
-        {
-            for (int x = region.X; x < region.X + region.Size && x < width; x++)
-            {
-                int idx = (y * width + x) * 3;
-                byte bit = (byte)(imageData[idx] & 1);
-                result = (byte)((result & ~(1 << bitPos)) | (bit << bitPos));
-                bitPos++;
-                if (bitPos >= 8) return result;
-            }
-        }
-
-        return result;
+        int idx = (r.Y * width + r.X) * 3;
+        return (byte)(data[idx] & 1);
     }
-
-    private void CopyBlockWithModification(byte[] imageData, TextureRegion source, TextureRegion dest, byte data, int width)
-    {
-        // Копируем блок из source в dest с модификацией
-        for (int y = 0; y < source.Size && dest.Y + y < imageData.Length / (width * 3); y++)
-        {
-            for (int x = 0; x < source.Size && dest.X + x < width; x++)
-            {
-                int srcIdx = ((source.Y + y) * width + (source.X + x)) * 3;
-                int dstIdx = ((dest.Y + y) * width + (dest.X + x)) * 3;
-
-                // Копируем пиксели
-                imageData[dstIdx] = imageData[srcIdx];
-                imageData[dstIdx + 1] = imageData[srcIdx + 1];
-                imageData[dstIdx + 2] = imageData[srcIdx + 2];
-
-                // Модифицируем LSB для кодирования данных
-                if (x == 0 && y == 0)
-                {
-                    imageData[dstIdx] = (byte)((imageData[dstIdx] & 0xFE) | (data & 1));
-                }
-            }
-        }
-    }
-
-    private byte ExtractModification(byte[] imageData, TextureRegion source, TextureRegion dest, int width)
-    {
-        int dstIdx = (dest.Y * width + dest.X) * 3;
-        return (byte)(imageData[dstIdx] & 1);
-    }
-
-    #endregion
 }
 
-public class TextureRegion
-{
-    public int X { get; set; }
-    public int Y { get; set; }
-    public int Size { get; set; }
-    public double Variance { get; set; }
-}
