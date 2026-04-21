@@ -3,6 +3,14 @@
   "WorkspaceRootPath": "D:\\Projects\\Zip2_Avalonia\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{E2178E18-93B7-4773-4CBB-95D230C345DF}|Zip2_Avalonia\\Zip2_Avalonia.csproj|d:\\projects\\zip2_avalonia\\zip2_avalonia\\mainwindow.axaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E2178E18-93B7-4773-4CBB-95D230C345DF}|Zip2_Avalonia\\Zip2_Avalonia.csproj|solutionrelative:zip2_avalonia\\mainwindow.axaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E2178E18-93B7-4773-4CBB-95D230C345DF}|Zip2_Avalonia\\Zip2_Avalonia.csproj|d:\\projects\\zip2_avalonia\\zip2_avalonia\\mainwindow.axaml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{E2178E18-93B7-4773-4CBB-95D230C345DF}|Zip2_Avalonia\\Zip2_Avalonia.csproj|solutionrelative:zip2_avalonia\\mainwindow.axaml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{E2178E18-93B7-4773-4CBB-95D230C345DF}|Zip2_Avalonia\\Zip2_Avalonia.csproj|d:\\projects\\zip2_avalonia\\zip2_avalonia\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{E2178E18-93B7-4773-4CBB-95D230C345DF}|Zip2_Avalonia\\Zip2_Avalonia.csproj|solutionrelative:zip2_avalonia\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -18,7 +26,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 7,
+          "SelectedChildIndex": 8,
           "Children": [
             {
               "$type": "Bookmark",
@@ -49,21 +57,51 @@
               "Name": "ST:6:0:{d212f56b-c48a-434c-a121-1c5d80b59b9f}"
             },
             {
+              "$type": "Bookmark",
+              "Name": "ST:1:0:{d212f56b-c48a-434c-a121-1c5d80b59b9f}"
+            },
+            {
               "$type": "Document",
               "DocumentIndex": 0,
+              "Title": "MainWindow.axaml.cs",
+              "DocumentMoniker": "D:\\Projects\\Zip2_Avalonia\\Zip2_Avalonia\\MainWindow.axaml.cs",
+              "RelativeDocumentMoniker": "Zip2_Avalonia\\MainWindow.axaml.cs",
+              "ToolTip": "D:\\Projects\\Zip2_Avalonia\\Zip2_Avalonia\\MainWindow.axaml.cs",
+              "RelativeToolTip": "Zip2_Avalonia\\MainWindow.axaml.cs",
+              "ViewState": "AgIAAFsAAAAAAAAAAAAkwFoAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-21T07:39:16.718Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "MainWindow.axaml",
+              "DocumentMoniker": "D:\\Projects\\Zip2_Avalonia\\Zip2_Avalonia\\MainWindow.axaml",
+              "RelativeDocumentMoniker": "Zip2_Avalonia\\MainWindow.axaml",
+              "ToolTip": "D:\\Projects\\Zip2_Avalonia\\Zip2_Avalonia\\MainWindow.axaml",
+              "RelativeToolTip": "Zip2_Avalonia\\MainWindow.axaml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-04-21T07:39:14.39Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
               "Title": "Program.cs",
               "DocumentMoniker": "D:\\Projects\\Zip2_Avalonia\\Zip2_Avalonia\\Program.cs",
               "RelativeDocumentMoniker": "Zip2_Avalonia\\Program.cs",
               "ToolTip": "D:\\Projects\\Zip2_Avalonia\\Zip2_Avalonia\\Program.cs",
               "RelativeToolTip": "Zip2_Avalonia\\Program.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAA4AAAAAAAAAAAAUwBgAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-04-19T18:20:13.017Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 3,
               "Title": "app.manifest",
               "DocumentMoniker": "D:\\Projects\\Zip2_Avalonia\\Zip2_Avalonia\\app.manifest",
               "RelativeDocumentMoniker": "Zip2_Avalonia\\app.manifest",

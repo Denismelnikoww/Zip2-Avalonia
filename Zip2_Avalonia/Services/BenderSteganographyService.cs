@@ -7,7 +7,7 @@ namespace Zip2.Steganography;
 
 /// <summary>
 /// Стеганография методом Бендера (Bender)
-/// Метод основан на копировании блоков из случайно выбранной текстурной области 
+/// Метод основан на копировании блоков из случайно выбранной текстурной области
 /// в другую область с похожими статистическими характеристиками.
 /// Это создаёт повторяющиеся блоки, обнаруживаемые по автокорреляции.
 /// </summary>
@@ -58,7 +58,7 @@ public class BenderSteganographyService
             int containerPixels = width * height;
             int headerPixels = 22;
             int maxPossiblePixels = (containerPixels - headerPixels);
-            
+
             if (secretWidth * secretHeight > maxPossiblePixels)
             {
                 return (false, 0, 0, "Секрет не найден");
@@ -89,7 +89,7 @@ public class BenderSteganographyService
                 byte r = (byte)(imageData[i * 3 + 2] & 1);
                 byte g = (byte)(imageData[i * 3 + 1] & 1);
                 byte b = (byte)(imageData[i * 3 + 0] & 1);
-                
+
                 // Упаковываем 3 бита в один байт (по сути это наш контейнер)
                 lsbData[i] = (byte)((r << 2) | (g << 1) | b);
             }
@@ -110,17 +110,17 @@ public class BenderSteganographyService
     /// Встраивает секретное изображение в LSB контейнера методом Бендера
     /// </summary>
     public void EmbedSecretImage(
-        string containerPath, 
-        string secretImagePath, 
+        string containerPath,
+        string secretImagePath,
         string outputPath,
         int blockSize = 8)
     {
         // Читаем контейнер
-        var (containerData, containerWidth, containerHeight, containerBpp) = 
+        var (containerData, containerWidth, containerHeight, containerBpp) =
             _bmpReader.ReadImageData(containerPath);
-        
+
         // Читаем секретное изображение
-        var (secretData, secretWidth, secretHeight, secretBpp) = 
+        var (secretData, secretWidth, secretHeight, secretBpp) =
             _bmpReader.ReadImageData(secretImagePath);
 
         // Рассчитываем ёмкость контейнера
@@ -130,11 +130,11 @@ public class BenderSteganographyService
         int headerPixels = 22;
         int availablePixels = containerPixels - headerPixels;
         int availableBits = availablePixels * 3; // 3 бита на пиксель
-        
+
         // Секретное изображение: 1 байт на пиксель ( grayscale )
         int secretPixels = secretWidth * secretHeight;
         int secretBitsRequired = secretPixels * 8; // 8 бит на пиксель
-        
+
         // Проверяем достаточно ли места
         if (secretBitsRequired > availableBits)
         {
@@ -176,11 +176,11 @@ public class BenderSteganographyService
     /// Извлекает секретное изображение из стегоизображения
     /// </summary>
     public void ExtractSecretImage(
-        string stegoImagePath, 
+        string stegoImagePath,
         string outputPath)
     {
         // Читаем стегоизображение
-        var (stegoData, width, height, bpp) = 
+        var (stegoData, width, height, bpp) =
             _bmpReader.ReadImageData(stegoImagePath);
 
         // Проверяем что это 24-битное изображение
@@ -199,13 +199,13 @@ public class BenderSteganographyService
         int containerPixels = width * height;
         int headerPixels = 22;
         int maxPossiblePixels = (containerPixels - headerPixels);
-        
+
         // Более мягкая проверка - если размеры некорректные, значит нет секрета
         if (secretWidth <= 0 || secretHeight <= 0)
         {
             throw new Exception("В изображении не найден скрытый секрет");
         }
-        
+
         if (secretWidth > width || secretHeight > height)
         {
             throw new Exception(
@@ -213,7 +213,7 @@ public class BenderSteganographyService
                 $"Секрет: {secretWidth}x{secretHeight}\n" +
                 $"Контейнер: {width}x{height}");
         }
-        
+
         if (secretWidth * secretHeight > maxPossiblePixels)
         {
             throw new Exception(
@@ -240,11 +240,11 @@ public class BenderSteganographyService
         int blockSize = 16)
     {
         // Читаем контейнер
-        var (containerData, containerWidth, containerHeight, containerBpp) = 
+        var (containerData, containerWidth, containerHeight, containerBpp) =
             _bmpReader.ReadImageData(containerPath);
 
         // Читаем секретное изображение и преобразуем в битовый поток
-        var (secretData, secretWidth, secretHeight, _) = 
+        var (secretData, secretWidth, secretHeight, _) =
             _bmpReader.ReadImageData(secretPath);
 
         // Создаём битовый поток из секретного изображения
@@ -282,7 +282,7 @@ public class BenderSteganographyService
             // Это создаёт повторяющиеся паттерны
             TextureRegion source = textureRegions[regionIndex % textureRegions.Count];
             TextureRegion dest = textureRegions[(regionIndex + 1) % textureRegions.Count];
-            
+
             CopyBlockWithModification(result, source, dest, secretBits[i], containerWidth);
             regionIndex++;
         }
@@ -317,7 +317,7 @@ public class BenderSteganographyService
         {
             throw new Exception("Неверные размеры в заголовке стегоизображения");
         }
-        
+
         // Ограничиваем максимальное количество извлекаемых пикселей
         int maxPixels = width * height;
         long requiredPixels = (long)secretWidth * secretHeight;
@@ -325,7 +325,7 @@ public class BenderSteganographyService
         {
             throw new Exception($"Размеры секрета превышают размеры контейнера: {secretWidth}x{secretHeight}");
         }
-        
+
         // Ограничиваем также от переполнения при умножении
         int safeMaxPixels = Math.Min(textureRegions.Count - 8, maxPixels);
         if (requiredPixels > safeMaxPixels)
@@ -340,7 +340,7 @@ public class BenderSteganographyService
         {
             TextureRegion source = textureRegions[i % textureRegions.Count];
             TextureRegion dest = textureRegions[(i + 1) % textureRegions.Count];
-            
+
             byte bit = ExtractModification(stegoData, source, dest, width);
             secretBits.Add(bit);
         }
@@ -357,25 +357,25 @@ public class BenderSteganographyService
         // Кодируем 64 бита (8 байт) в первые 22 пикселя LSB
         // Каждый пиксель LSB содержит 3 бита
         // 64 бита / 3 бита = 21.33 пикселя, округляем до 22
-        
+
         byte[] widthBytes = new byte[] {
             (byte)((width >> 24) & 0xFF),
             (byte)((width >> 16) & 0xFF),
             (byte)((width >> 8) & 0xFF),
             (byte)(width & 0xFF)
         };
-        
+
         byte[] heightBytes = new byte[] {
             (byte)((height >> 24) & 0xFF),
             (byte)((height >> 16) & 0xFF),
             (byte)((height >> 8) & 0xFF),
             (byte)(height & 0xFF)
         };
-        
+
         byte[] allBytes = new byte[8];
         Array.Copy(widthBytes, 0, allBytes, 0, 4);
         Array.Copy(heightBytes, 0, allBytes, 4, 4);
-        
+
         // Кодируем 8 байт (64 бита) в пиксели LSB
         int bitIndex = 0;
         for (int i = 0; i < 22 && i < lsb.Length; i++)
@@ -401,12 +401,12 @@ public class BenderSteganographyService
         // Декодируем 64 бита из первых 22 пикселей LSB
         byte[] allBytes = new byte[8];
         int bitIndex = 0;
-        
+
         for (int i = 0; i < 22 && i < lsb.Length; i++)
         {
             // Извлекаем 3 бита из пикселя
             byte bits = (byte)(lsb[i] & 7);
-            
+
             for (int j = 0; j < 3; j++)
             {
                 if (bitIndex < 64)
@@ -422,29 +422,29 @@ public class BenderSteganographyService
                 bitIndex++;
             }
         }
-        
+
         int width = (allBytes[0] << 24) | (allBytes[1] << 16) | (allBytes[2] << 8) | allBytes[3];
         int height = (allBytes[4] << 24) | (allBytes[5] << 16) | (allBytes[6] << 8) | allBytes[7];
-        
+
         return (width, height);
     }
 
     private void EncodeSecretData(byte[] lsb, byte[] secretData, int secretWidth, int secretHeight, int containerWidth)
     {
         int offset = 22; // Пропускаем заголовок (22 пикселя по 3 бита = 66 бит ≈ 64 бита)
-        
+
         int secretPixels = secretWidth * secretHeight;
-        
+
         // Защита от пустых данных
         if (secretPixels <= 0 || secretData.Length == 0)
         {
             return;
         }
-        
+
         // Определяем количество байт на пиксель в секретном изображении
         int secretBytesPerPixel = secretData.Length / secretPixels;
         if (secretBytesPerPixel < 1) secretBytesPerPixel = 1;
-        
+
         for (int i = 0; i < secretPixels && offset < lsb.Length; i++)
         {
             // Берём значение пикселя (grayscale)
@@ -459,16 +459,16 @@ public class BenderSteganographyService
                 // 8-битное изображение - берём напрямую
                 val = secretData[i];
             }
-            
+
             // Кодируем 8 бит в 3 пикселя LSB (по 3 бита на пиксель)
             lsb[offset] = (byte)((lsb[offset] & 0xF8) | ((val >> 5) & 7));
             offset++;
             if (offset >= lsb.Length) break;
-            
+
             lsb[offset] = (byte)((lsb[offset] & 0xF8) | ((val >> 2) & 7));
             offset++;
             if (offset >= lsb.Length) break;
-            
+
             lsb[offset] = (byte)((lsb[offset] & 0xF8) | (val & 7));
             offset++;
         }
@@ -478,7 +478,7 @@ public class BenderSteganographyService
     {
         int totalPixels = secretWidth * secretHeight;
         byte[] result = new byte[totalPixels * 3]; // RGB данные
-        
+
         int offset = 22; // Пропускаем заголовок (22 пикселя)
         for (int i = 0; i < totalPixels && offset < lsb.Length; i++)
         {
@@ -486,23 +486,23 @@ public class BenderSteganographyService
             byte b0 = (byte)(lsb[offset] & 7);
             offset++;
             if (offset >= lsb.Length) break;
-            
+
             byte b1 = (byte)(lsb[offset] & 7);
             offset++;
             if (offset >= lsb.Length) break;
-            
+
             byte b2 = (byte)(lsb[offset] & 7);
             offset++;
-            
+
             // Собираем 8 бит обратно
             byte val = (byte)((b0 << 5) | (b1 << 2) | b2);
-            
+
             // Записываем как RGB (три канала одинаковые = grayscale)
             result[i * 3 + 0] = val; // B
             result[i * 3 + 1] = val; // G
             result[i * 3 + 2] = val; // R
         }
-        
+
         return result;
     }
 
@@ -515,7 +515,7 @@ public class BenderSteganographyService
                 byte r = (byte)((lsbData[i] >> 2) & 1);
                 byte g = (byte)((lsbData[i] >> 1) & 1);
                 byte b = (byte)(lsbData[i] & 1);
-                
+
                 imageData[i * 3 + 2] = (byte)((imageData[i * 3 + 2] & 0xFE) | r);
                 imageData[i * 3 + 1] = (byte)((imageData[i * 3 + 1] & 0xFE) | g);
                 imageData[i * 3 + 0] = (byte)((imageData[i * 3 + 0] & 0xFE) | b);
@@ -567,7 +567,7 @@ public class BenderSteganographyService
     private List<TextureRegion> FindTextureRegions(byte[] imageData, int width, int height, int blockSize)
     {
         List<TextureRegion> regions = new List<TextureRegion>();
-        
+
         for (int y = 0; y < height - blockSize; y += blockSize)
         {
             for (int x = 0; x < width - blockSize; x += blockSize)
@@ -579,10 +579,10 @@ public class BenderSteganographyService
                 }
             }
         }
-        
+
         // Сортируем по дисперсии
         regions.Sort((a, b) => b.Variance.CompareTo(a.Variance));
-        
+
         return regions;
     }
 
@@ -605,7 +605,7 @@ public class BenderSteganographyService
         }
 
         if (count == 0) return 0;
-        
+
         double mean = (double)sum / count;
         double variance = (double)sumSq / count - mean * mean;
         return variance;
@@ -629,7 +629,7 @@ public class BenderSteganographyService
     {
         byte result = 0;
         int bitPos = 0;
-        
+
         for (int y = region.Y; y < region.Y + region.Size && y < imageData.Length / (width * 3); y++)
         {
             for (int x = region.X; x < region.X + region.Size && x < width; x++)
@@ -641,7 +641,7 @@ public class BenderSteganographyService
                 if (bitPos >= 8) return result;
             }
         }
-        
+
         return result;
     }
 
@@ -654,12 +654,12 @@ public class BenderSteganographyService
             {
                 int srcIdx = ((source.Y + y) * width + (source.X + x)) * 3;
                 int dstIdx = ((dest.Y + y) * width + (dest.X + x)) * 3;
-                
+
                 // Копируем пиксели
                 imageData[dstIdx] = imageData[srcIdx];
                 imageData[dstIdx + 1] = imageData[srcIdx + 1];
                 imageData[dstIdx + 2] = imageData[srcIdx + 2];
-                
+
                 // Модифицируем LSB для кодирования данных
                 if (x == 0 && y == 0)
                 {

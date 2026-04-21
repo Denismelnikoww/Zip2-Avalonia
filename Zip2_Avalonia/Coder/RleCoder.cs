@@ -61,7 +61,6 @@ public class RleCoder
             {
                 if (value == 0xFF)
                 {
-                    // экранирование
                     output.WriteByte(0xFF);
                     output.WriteByte(0x00);
                 }
@@ -72,7 +71,7 @@ public class RleCoder
             }
         }
     }
-    
+
     /// <summary>
     /// Декодирование
     /// </summary>

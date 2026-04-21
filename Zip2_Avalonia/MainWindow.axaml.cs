@@ -88,7 +88,7 @@ public partial class MainWindow : Window
                 btnProcess.IsEnabled = true;
                 btnEmbedSecret.IsEnabled = true;
                 btnExtractSecret.IsEnabled = true;
-                
+
                 // Проверяем есть ли секрет
                 var (hasSecret, secretW, secretH, error) = _steganography.ValidateStegoImage(_currentFilePath);
                 if (hasSecret)
@@ -204,7 +204,7 @@ public partial class MainWindow : Window
                 LoadAndDisplayImage(outputPath);
                 LoadAndDisplayHeaders(outputPath);
                 LoadImageData(outputPath);
-            
+
                 await new MessageBox
                 {
                     Title = "Готово",
