@@ -136,6 +136,21 @@ public partial class MainWindow : Window
             string fileName = Path.GetFileNameWithoutExtension(_currentFilePath);
             string outputPath = Path.Combine(outputDir, fileName + "_encoded.rle");
 
+            string ppmPath = Path.Combine(outputDir, fileName + ".ppm");
+            string modelPath = Path.Combine(outputDir, fileName + "_ppm_model.json");
+
+            byte[] inputData = await File.ReadAllBytesAsync(_currentFilePath);
+
+            var ppmCoder = new PpmByteCoder();
+            byte[] ppmEncoded = ppmCoder.Encode(inputData);
+            var modelData = ppmCoder.ExportModel();
+
+            string modelJson = System.Text.Json.JsonSerializer.Serialize(modelData,
+                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+            await File.WriteAllBytesAsync(ppmPath, ppmEncoded);
+            await File.WriteAllTextAsync(modelPath, modelJson);
+
             using (var input = new FileStream(_currentFilePath, FileMode.Open))
             using (var output = new FileStream(outputPath, FileMode.Create))
             {

@@ -15,6 +15,7 @@ public class PpmByteCoder
         private readonly byte[] _bytes;
         private readonly int _hashCode;
 
+
         public BytesKey(byte[] bytes)
         {
             _bytes = bytes;

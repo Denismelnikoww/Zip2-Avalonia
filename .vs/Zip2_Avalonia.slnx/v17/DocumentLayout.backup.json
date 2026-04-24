@@ -3,6 +3,14 @@
   "WorkspaceRootPath": "D:\\Projects\\Zip2_Avalonia\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{E2178E18-93B7-4773-4CBB-95D230C345DF}|Zip2_Avalonia\\Zip2_Avalonia.csproj|d:\\projects\\zip2_avalonia\\zip2_avalonia\\mainwindow.axaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E2178E18-93B7-4773-4CBB-95D230C345DF}|Zip2_Avalonia\\Zip2_Avalonia.csproj|solutionrelative:zip2_avalonia\\mainwindow.axaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E2178E18-93B7-4773-4CBB-95D230C345DF}|Zip2_Avalonia\\Zip2_Avalonia.csproj|d:\\projects\\zip2_avalonia\\zip2_avalonia\\coder\\ppmbytecoder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E2178E18-93B7-4773-4CBB-95D230C345DF}|Zip2_Avalonia\\Zip2_Avalonia.csproj|solutionrelative:zip2_avalonia\\coder\\ppmbytecoder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{E2178E18-93B7-4773-4CBB-95D230C345DF}|Zip2_Avalonia\\Zip2_Avalonia.csproj|d:\\projects\\zip2_avalonia\\zip2_avalonia\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{E2178E18-93B7-4773-4CBB-95D230C345DF}|Zip2_Avalonia\\Zip2_Avalonia.csproj|solutionrelative:zip2_avalonia\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -18,7 +26,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 9,
+          "SelectedChildIndex": 8,
           "Children": [
             {
               "$type": "Bookmark",
@@ -53,12 +61,38 @@
               "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
             },
             {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "MainWindow.axaml.cs",
+              "DocumentMoniker": "D:\\Projects\\Zip2_Avalonia\\Zip2_Avalonia\\MainWindow.axaml.cs",
+              "RelativeDocumentMoniker": "Zip2_Avalonia\\MainWindow.axaml.cs",
+              "ToolTip": "D:\\Projects\\Zip2_Avalonia\\Zip2_Avalonia\\MainWindow.axaml.cs",
+              "RelativeToolTip": "Zip2_Avalonia\\MainWindow.axaml.cs",
+              "ViewState": "AgIAAIMAAAAAAAAAAAA0wIgAAAAZAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-24T10:54:35.727Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "PpmByteCoder.cs",
+              "DocumentMoniker": "D:\\Projects\\Zip2_Avalonia\\Zip2_Avalonia\\Coder\\PpmByteCoder.cs",
+              "RelativeDocumentMoniker": "Zip2_Avalonia\\Coder\\PpmByteCoder.cs",
+              "ToolTip": "D:\\Projects\\Zip2_Avalonia\\Zip2_Avalonia\\Coder\\PpmByteCoder.cs",
+              "RelativeToolTip": "Zip2_Avalonia\\Coder\\PpmByteCoder.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-24T10:53:01.309Z",
+              "EditorCaption": ""
+            },
+            {
               "$type": "Bookmark",
               "Name": "ST:1:0:{d212f56b-c48a-434c-a121-1c5d80b59b9f}"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 2,
               "Title": "Program.cs",
               "DocumentMoniker": "D:\\Projects\\Zip2_Avalonia\\Zip2_Avalonia\\Program.cs",
               "RelativeDocumentMoniker": "Zip2_Avalonia\\Program.cs",
@@ -71,7 +105,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 3,
               "Title": "app.manifest",
               "DocumentMoniker": "D:\\Projects\\Zip2_Avalonia\\Zip2_Avalonia\\app.manifest",
               "RelativeDocumentMoniker": "Zip2_Avalonia\\app.manifest",
@@ -79,8 +113,7 @@
               "RelativeToolTip": "Zip2_Avalonia\\app.manifest",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001793|",
-              "WhenOpened": "2026-04-19T12:34:26.993Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-19T12:34:26.993Z"
             }
           ]
         }
