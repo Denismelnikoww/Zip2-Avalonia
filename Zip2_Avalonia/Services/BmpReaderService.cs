@@ -70,7 +70,7 @@ public class BmpReaderService
             }
             else if (biBitCount == 16)
             {
-                reader.ReadBytes(12); 
+                reader.ReadBytes(12);
             }
 
             int absHeight = Math.Abs(height);
@@ -93,9 +93,9 @@ public class BmpReaderService
                     int rowSrc = (height > 0) ? (absHeight - 1 - y) * rowSize : y * rowSize;
                     for (int x = 0; x < width; x++)
                     {
-                        imageData[destIndex + 2] = rawData[rowSrc + x * 3 + 2]; 
-                        imageData[destIndex + 1] = rawData[rowSrc + x * 3 + 1]; 
-                        imageData[destIndex + 0] = rawData[rowSrc + x * 3 + 0]; 
+                        imageData[destIndex + 2] = rawData[rowSrc + x * 3 + 2];
+                        imageData[destIndex + 1] = rawData[rowSrc + x * 3 + 1];
+                        imageData[destIndex + 0] = rawData[rowSrc + x * 3 + 0];
                         destIndex += 3;
                     }
                 }

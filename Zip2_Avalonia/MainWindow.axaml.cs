@@ -16,6 +16,8 @@ public partial class MainWindow : Window
     private readonly BmpReaderService _bmpReader;
     private readonly ImageProcessingService _imageProcessor;
     private readonly BenderSteganographyService _steganography;
+    private readonly BmpOptimizedCoder _bmpCoder = new BmpOptimizedCoder();
+
 
     private string _currentRlePath;
     private string _currentFilePath;
@@ -119,11 +121,7 @@ public partial class MainWindow : Window
     {
         if (_currentFilePath == null)
         {
-            await new MessageBox
-            {
-                Title = "Ошибка",
-                Content = "Сначала выберите BMP файл"
-            }.ShowDialog(this);
+            await new MessageBox { Title = "Ошибка", Content = "Сначала выберите BMP файл" }.ShowDialog(this);
             return;
         }
 
@@ -134,113 +132,69 @@ public partial class MainWindow : Window
             Directory.CreateDirectory(outputDir);
 
             string fileName = Path.GetFileNameWithoutExtension(_currentFilePath);
-            string outputPath = Path.Combine(outputDir, fileName + "_encoded.rle");
+            string outputPath = Path.Combine(outputDir, fileName + "_optimized.bmpc");
 
-            string ppmPath = Path.Combine(outputDir, fileName + ".ppm");
-            string modelPath = Path.Combine(outputDir, fileName + "_ppm_model.json");
-
-            byte[] inputData = await File.ReadAllBytesAsync(_currentFilePath);
-
-            var ppmCoder = new PpmByteCoder();
-            byte[] ppmEncoded = ppmCoder.Encode(inputData);
-            var modelData = ppmCoder.ExportModel();
-
-            string modelJson = System.Text.Json.JsonSerializer.Serialize(modelData,
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-
-            await File.WriteAllBytesAsync(ppmPath, ppmEncoded);
-            await File.WriteAllTextAsync(modelPath, modelJson);
-
-            using (var input = new FileStream(_currentFilePath, FileMode.Open))
             using (var output = new FileStream(outputPath, FileMode.Create))
             {
-                RleCoder.Encode(input, output);
+                _bmpCoder.Encode(_currentFilePath, output);
             }
 
             long originalSize = new FileInfo(_currentFilePath).Length;
             long encodedSize = new FileInfo(outputPath).Length;
-
             double ratio = (double)encodedSize / originalSize;
             double compressionPercent = (1 - ratio) * 100;
 
-            txtStatus.Text = $"Сжато: {compressionPercent:F2}% | {originalSize} → {encodedSize} байт";
+            txtStatus.Text = $"Сжатие: {compressionPercent:F2}% | {originalSize:N0} → {encodedSize:N0} байт\n" +
+                            $"Методы: RGB каналы + DPCM + RLE";
 
-            await new MessageBox
-            {
-                Title = "Готово",
-                Content = $"Файл сохранён:\n{outputPath}\nСжатие: {compressionPercent:F2}%"
-            }.ShowDialog(this);
+            await new MessageBox { Title = "Готово", Content = $"Файл сохранён:\n{outputPath}\nСжатие: {compressionPercent:F2}%" }.ShowDialog(this);
         }
         catch (Exception ex)
         {
-            txtStatus.Text = $"Ошибка кодирования: {ex.Message}";
-
-            await new MessageBox
-            {
-                Title = "Ошибка",
-                Content = ex.Message
-            }.ShowDialog(this);
+            txtStatus.Text = $"Ошибка: {ex.Message}";
+            await new MessageBox { Title = "Ошибка", Content = ex.Message }.ShowDialog(this);
         }
+    }
+
+    private void LogMessage(string message)
+    {
+        string logPath = Path.Combine(Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory), "stego_debug.log");
+        string logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}";
+        File.AppendAllText(logPath, logEntry);
     }
 
     private async void BtnDecode_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_currentRlePath == null)
         {
-            txtStatus.Text = "Сначала выбери RLE файл";
-
-            await new MessageBox
-            {
-                Title = "Ошибка",
-                Content = "RLE файл не выбран"
-            }.ShowDialog(this);
-
+            await new MessageBox { Title = "Ошибка", Content = "Выберите сжатый файл" }.ShowDialog(this);
             return;
         }
+
+        LogMessage($"Декодируем файл: {_currentRlePath}");
 
         try
         {
             string baseDir = Path.GetDirectoryName(_currentRlePath)!;
-            string outputPath = Path.Combine(baseDir, "decoded.bmp");
+            string outputPath = Path.Combine(baseDir, "restored.bmp");
 
             using (var input = new FileStream(_currentRlePath, FileMode.Open))
-            using (var output = new FileStream(outputPath, FileMode.Create))
             {
-                RleCoder.Decode(input, output);
+                _bmpCoder.Decode(input, outputPath);
             }
 
             txtStatus.Text = $"Декодировано: {outputPath}";
 
-            try
-            {
-                LoadAndDisplayImage(outputPath);
-                LoadAndDisplayHeaders(outputPath);
-                LoadImageData(outputPath);
+            LoadAndDisplayImage(outputPath);
+            LoadAndDisplayHeaders(outputPath);
+            LoadImageData(outputPath);
 
-                await new MessageBox
-                {
-                    Title = "Готово",
-                    Content = $"Файл восстановлен и загружен:\n{outputPath}"
-                }.ShowDialog(this);
-            }
-            catch
-            {
-                await new MessageBox
-                {
-                    Title = "Готово",
-                    Content = $"Файл восстановлен:\n{outputPath}\n(но не может быть отображен)"
-                }.ShowDialog(this);
-            }
+            await new MessageBox { Title = "Готово", Content = $"Файл восстановлен:\n{outputPath}" }.ShowDialog(this);
         }
         catch (Exception ex)
         {
-            txtStatus.Text = $"Ошибка декодирования: {ex.Message}";
-
-            await new MessageBox
-            {
-                Title = "Ошибка",
-                Content = ex.ToString()
-            }.ShowDialog(this);
+            txtStatus.Text = $"Ошибка: {ex.Message}";
+            await new MessageBox { Title = "Ошибка", Content = ex.ToString() }.ShowDialog(this);
         }
     }
 
